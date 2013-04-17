@@ -26,17 +26,19 @@ const (
 )
 
 const (
-	eof           = 0
-	keyGroupStart = '['
-	keyGroupEnd   = ']'
-	keyGroupSep   = '.'
-	keySep        = '='
-	arrayStart    = '['
-	arrayEnd      = ']'
-	arrayValTerm  = ','
-	commentStart  = '#'
-	stringStart   = '"'
-	stringEnd     = '"'
+	eof            = 0
+	keyGroupStart  = '['
+	keyGroupEnd    = ']'
+	keyGroupSep    = '.'
+	keySep         = '='
+	arrayStart     = '['
+	arrayEnd       = ']'
+	arrayValTerm   = ','
+	commentStart   = '#'
+	stringStart    = '"'
+	stringEnd      = '"'
+	rawStringStart = '\''
+	rawStringEnd   = '\''
 )
 
 type stateFn func(lx *lexer) stateFn
@@ -333,6 +335,9 @@ func lexValue(lx *lexer) stateFn {
 		lx.ignore()
 		lx.emit(itemArray)
 		return lexArrayValue
+	case r == rawStringStart:
+		lx.ignore() // ignore the '\''
+		return lexRawString
 	case r == stringStart:
 		lx.ignore() // ignore the '"'
 		return lexString
@@ -398,6 +403,24 @@ func lexArrayEnd(lx *lexer) stateFn {
 	lx.ignore()
 	lx.emit(itemArrayEnd)
 	return lx.pop()
+}
+
+// lexRawString consumes the inner contents of a raw string. It assumes that
+// the beginning "'" has already been consumed and ignored.
+func lexRawString(lx *lexer) stateFn {
+	r := lx.next()
+	switch {
+	case r == '\\':
+		lx.next()
+		return lexRawString
+	case r == rawStringEnd:
+		lx.backup()
+		lx.emit(itemString)
+		lx.next()
+		lx.ignore()
+		return lx.pop()
+	}
+	return lexRawString
 }
 
 // lexString consumes the inner contents of a string. It assumes that the

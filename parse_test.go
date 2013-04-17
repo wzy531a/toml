@@ -10,7 +10,7 @@ var testParseSmall = `
 
 wat = "chipper"
 
-[owner.andrew.gallant] 
+[owner.andrew.gallant]
 hmm = "hi"
 
 [owner] # Whoa there.
@@ -20,6 +20,7 @@ num = -5192
 f = -0.5192
 zulu = 1979-05-27T07:32:00Z
 whoop = "poop"
+rawstring = 'this is \d+ for \' all'
 tests = [ [1, 2, 3], ["abc", "xyz"] ]
 arrs = [ # hmm
 		 # more comments are awesome.

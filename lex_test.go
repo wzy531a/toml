@@ -12,7 +12,7 @@ func init() {
 var testSmall = `
 # This is a TOML document. Boom.
 
-[owner] 
+[owner]
 [owner] # Whoa there.
 andrew = "gallant # poopy" # weeeee
 predicate = false
@@ -20,6 +20,7 @@ num = -5192
 f = -0.5192
 zulu = 1979-05-27T07:32:00Z
 whoop = "poop"
+rawstring = 'this is \d+ for all'
 arrs = [
 	1987-07-05T05:45:00Z,
 	5,

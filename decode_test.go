@@ -12,6 +12,25 @@ func init() {
 	log.SetFlags(0)
 }
 
+var testBadArg = `
+age = 250
+
+not_andrew = "gallant"
+kait = "brady"
+now = 1987-07-05T05:45:00Z 
+yesOrNo = true
+pi = 3.14
+colors = [
+	["red", "green", "blue"],
+	["cyan", "magenta", "yellow", "black"],
+]
+
+[Annoying.Cats]
+plato = "smelly"
+cauchy = "stupido"
+
+`
+
 var testSimple = `
 age = 250
 
@@ -45,6 +64,23 @@ type simple struct {
 	Andrew   string
 	Kait     string
 	Annoying map[string]kitties
+}
+
+func TestDecodeStrict(t *testing.T) {
+
+	var val simple
+	var err error
+
+	_, err = DecodeStrict(testSimple, &val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = DecodeStrict(testBadArg, &val)
+	if err == nil {
+		t.Fatal(fmt.Errorf("Expected to see an invalid " +
+			"argument error for not_andrew"))
+	}
+
 }
 
 func TestDecode(t *testing.T) {

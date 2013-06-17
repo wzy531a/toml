@@ -358,7 +358,7 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		primValue := music.Bands[artist]
 
 		var aBand band
-		if err = PrimitiveDecodeStrict(primValue, &aBand); err != nil {
+		if err = PrimitiveDecodeStrict(primValue, &aBand, []string{}); err != nil {
 			fmt.Println(err.Error())
 		}
 		fmt.Printf("%s started in %d.\n", artist, aBand.Started)

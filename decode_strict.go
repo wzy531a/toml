@@ -1,8 +1,8 @@
 package toml
 
 // Same as PrimitiveDecode but adds a strict verification
-func PrimitiveDecodeStrict(primValue Primitive, v interface{}) (err error) {
-	err = verify(primValue, rvalue(v))
+func PrimitiveDecodeStrict(primValue Primitive, v interface{}, ignore_fields []string) (err error) {
+	err = verify(primValue, rvalue(v), []string{})
 	if err != nil {
 		return
 	}
@@ -19,6 +19,6 @@ func DecodeStrict(data string, v interface{}) (m MetaData, err error) {
 		return
 	}
 
-	err = verify(m.mapping, rvalue(v))
+	err = verify(m.mapping, rvalue(v), []string{})
 	return
 }

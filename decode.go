@@ -425,7 +425,7 @@ func allKeys(m map[string]interface{}, context Key) []Key {
 //
 // Any type mismatch produces an error. Finding a type that we don't know
 // how to handle produces an unsupported type error.
-func verify(data interface{}, rv reflect.Value) error {
+func verify(data interface{}, rv reflect.Value, ignore_fields []string) error {
 	// Special case. Look for a `Primitive` value.
 	if rv.Type() == reflect.TypeOf((*Primitive)(nil)).Elem() {
 		return verifyAnything(data, rv)
@@ -510,7 +510,7 @@ func verifyStruct(mapping interface{}, rv reflect.Value) error {
 
 			// Don't try to mess with unexported types and other such things.
 			if sf.CanSet() {
-				if err := verify(datum, sf); err != nil {
+				if err := verify(datum, sf, []string{}); err != nil {
 					return err
 				}
 			} else if len(sft.Tag.Get("toml")) > 0 {
@@ -535,7 +535,7 @@ func verifyMap(mapping interface{}, rv reflect.Value) error {
 	// Just verify each of the keys
 	for _, v := range tmap {
 		rvval := indirect(reflect.New(rv.Type().Elem()))
-		if err := verify(v, rvval); err != nil {
+		if err := verify(v, rvval, []string{}); err != nil {
 			return err
 		}
 	}
@@ -553,7 +553,7 @@ func verifySlice(data interface{}, rv reflect.Value) error {
 	}
 	for i, v := range slice {
 		sliceval := indirect(rv.Index(i))
-		if err := verify(v, sliceval); err != nil {
+		if err := verify(v, sliceval, []string{}); err != nil {
 			return err
 		}
 	}

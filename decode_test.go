@@ -275,7 +275,7 @@ ip = "10.0.0.2"
 		fmt.Printf("Ports: %v\n", s.Config.Ports)
 	}
 
-	// // Output:
+	// Output:
 	// Server: alpha (ip: 10.0.0.1) in Toronto created on 1987-07-05
 	// Ports: [8001 8002]
 	// Server: beta (ip: 10.0.0.2) in New Jersey created on 1887-01-05

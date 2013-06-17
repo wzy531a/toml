@@ -313,3 +313,60 @@ ip = "10.0.0.1"
 	// Configuration contains key [not_andrew] which doesn't exist in struct
 
 }
+
+func ExamplePrimitiveDecodeStrict() {
+	var md MetaData
+	var err error
+
+	var tomlBlob = `
+ranking = ["Springsteen", "J Geils"]
+
+[bands.Springsteen]
+started = 1973
+albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
+not_albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
+
+[bands.J Geils]
+started = 1970
+albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
+`
+
+	type band struct {
+		Started int
+		Albums  []string
+	}
+
+	type classics struct {
+		Ranking []string
+		Bands   map[string]Primitive
+	}
+
+	// Do the initial decode. Reflection is delayed on Primitive values.
+	var music classics
+	if md, err = Decode(tomlBlob, &music); err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// MetaData still includes information on Primitive values.
+	fmt.Printf("Is `bands.Springsteen` defined? %v\n",
+		md.IsDefined("bands", "Springsteen"))
+
+	// Decode primitive data into Go values.
+	for _, artist := range music.Ranking {
+		// A band is a primitive value, so we need to decode it to get a
+		// real `band` value.
+		primValue := music.Bands[artist]
+
+		var aBand band
+		if err = PrimitiveDecodeStrict(primValue, &aBand); err != nil {
+			fmt.Println(err.Error())
+		}
+		fmt.Printf("%s started in %d.\n", artist, aBand.Started)
+	}
+
+	// Output:
+	// Is `bands.Springsteen` defined? true
+	// Configuration contains key [not_albums] which doesn't exist in struct
+	// Springsteen started in 0.
+	// J Geils started in 1970.
+}

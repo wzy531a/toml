@@ -69,18 +69,6 @@ func Decode(data string, v interface{}) (MetaData, error) {
 	return MetaData{p.mapping, p.types, p.ordered}, unify(p.mapping, rvalue(v))
 }
 
-// The same as Decode, except that parsed data that cannot be mapped
-// will throw an error
-func DecodeStrict(data string, v interface{}) (m MetaData, err error) {
-	m, err = Decode(data, v)
-	if err != nil {
-		return
-	}
-
-	err = verify(m.mapping, rvalue(v))
-	return
-}
-
 // DecodeFile is just like Decode, except it will automatically read the
 // contents of the file at `fpath` and decode it for you.
 func DecodeFile(fpath string, v interface{}) (MetaData, error) {

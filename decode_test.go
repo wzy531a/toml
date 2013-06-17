@@ -66,23 +66,6 @@ type simple struct {
 	Annoying map[string]kitties
 }
 
-func TestDecodeStrict(t *testing.T) {
-
-	var val simple
-	var err error
-
-	_, err = DecodeStrict(testSimple, &val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = DecodeStrict(testBadArg, &val)
-	if err == nil {
-		t.Fatal(fmt.Errorf("Expected to see an invalid " +
-			"argument error for not_andrew"))
-	}
-
-}
-
 func TestDecode(t *testing.T) {
 	var val simple
 
@@ -280,4 +263,53 @@ ip = "10.0.0.2"
 	// Ports: [8001 8002]
 	// Server: beta (ip: 10.0.0.2) in New Jersey created on 1887-01-05
 	// Ports: [9001 9002]
+}
+
+func ExampleDecodeStrict() {
+	var tomlBlob = `
+# Some comments.
+[alpha]
+ip = "10.0.0.1"
+
+	[alpha.config]
+	Port = [ 8001, 8002 ]
+	Location = "Toronto"
+	Created = 1987-07-05T05:45:00Z
+`
+
+	type serverConfig struct {
+		Ports    []int
+		Location string
+		Created  time.Time
+	}
+
+	type server struct {
+		IP     string       `toml:"ip"`
+		Config serverConfig `toml:"config"`
+	}
+
+	type servers map[string]server
+
+	var config servers
+	if _, err := DecodeStrict(tomlBlob, &config); err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
+
+	var val simple
+	var err error
+
+	_, err = DecodeStrict(testSimple, &val)
+	if err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
+
+	_, err = DecodeStrict(testBadArg, &val)
+	if err != nil {
+		fmt.Printf("%s\n", err.Error())
+	}
+
+	// Output:
+	// Configuration contains key [Port] which doesn't exist in struct
+	// Configuration contains key [not_andrew] which doesn't exist in struct
+
 }

@@ -291,19 +291,21 @@ ip = "10.0.0.1"
 	type servers map[string]server
 
 	var config servers
-	if _, err := DecodeStrict(tomlBlob, &config); err != nil {
+	empty_ignore := map[string]interface{}{}
+
+	if _, err := DecodeStrict(tomlBlob, &config, empty_ignore); err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}
 
 	var val simple
 	var err error
 
-	_, err = DecodeStrict(testSimple, &val)
+	_, err = DecodeStrict(testSimple, &val, empty_ignore)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}
 
-	_, err = DecodeStrict(testBadArg, &val)
+	_, err = DecodeStrict(testBadArg, &val, empty_ignore)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
 	}
@@ -322,6 +324,7 @@ func ExamplePrimitiveDecodeStrict() {
 ranking = ["Springsteen", "J Geils"]
 
 [bands.Springsteen]
+type = "ignore_this"
 started = 1973
 albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
 not_albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
@@ -351,6 +354,7 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 	fmt.Printf("Is `bands.Springsteen` defined? %v\n",
 		md.IsDefined("bands", "Springsteen"))
 
+	ignore_type := map[string]interface{}{"type": true}
 	// Decode primitive data into Go values.
 	for _, artist := range music.Ranking {
 		// A band is a primitive value, so we need to decode it to get a
@@ -358,7 +362,7 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		primValue := music.Bands[artist]
 
 		var aBand band
-		if err = PrimitiveDecodeStrict(primValue, &aBand, []string{}); err != nil {
+		if err = PrimitiveDecodeStrict(primValue, &aBand, ignore_type); err != nil {
 			fmt.Println(err.Error())
 		}
 		fmt.Printf("%s started in %d.\n", artist, aBand.Started)

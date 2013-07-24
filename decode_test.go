@@ -376,3 +376,37 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		}
 	}
 }
+
+func ExampleDelegateDecodeStrict() {
+
+	var tomlBlob = `
+[MyMultiDecoder]
+type = "MultiDecoder"
+order = ["MyJsonDecoder", "MyProtobufDecoder"]
+
+[MyMultiDecoder.delegates.MyJsonDecoder]
+type = "JsonDecoder"
+encoding_name = "JSON"
+
+[MyMultiDecoder.delegates.MyProtobufDecoder]
+type = "ProtobufDecoder"
+encoding_name = "PROTOCOL_BUFFER"
+`
+
+	type decoder struct {
+		Typ       string `toml:"type"`
+		Order     []string
+		delegates interface{}
+	}
+
+	var err error
+	var obj interface{}
+	empty_ignore := map[string]interface{}{}
+	if _, err = DecodeStrict(tomlBlob, &obj, empty_ignore); err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Printf("Got object: %r", obj)
+	// Output:
+	// Got metadata
+
+}

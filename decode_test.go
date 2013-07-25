@@ -205,25 +205,25 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 	}
 }
 
-func ExampleDecode() {
+func ExampleDecodeSpec(c gs.Context) {
 	var tomlBlob = `
-# Some comments.
-[alpha]
-ip = "10.0.0.1"
+	# Some comments.
+	[alpha]
+	ip = "10.0.0.1"
 
-	[alpha.config]
-	Ports = [ 8001, 8002 ]
-	Location = "Toronto"
-	Created = 1987-07-05T05:45:00Z
+		[alpha.config]
+		Ports = [ 8001, 8002 ]
+		Location = "Toronto"
+		Created = 1987-07-05T05:45:00Z
 
-[beta]
-ip = "10.0.0.2"
+	[beta]
+	ip = "10.0.0.2"
 
-	[beta.config]
-	Ports = [ 9001, 9002 ]
-	Location = "New Jersey"
-	Created = 1887-01-05T05:55:00Z
-`
+		[beta.config]
+		Ports = [ 9001, 9002 ]
+		Location = "New Jersey"
+		Created = 1887-01-05T05:55:00Z
+	`
 
 	type serverConfig struct {
 		Ports    []int
@@ -243,19 +243,42 @@ ip = "10.0.0.2"
 		log.Fatal(err)
 	}
 
-	for _, name := range []string{"alpha", "beta"} {
-		s := config[name]
-		fmt.Printf("Server: %s (ip: %s) in %s created on %s\n",
-			name, s.IP, s.Config.Location,
-			s.Config.Created.Format("2006-01-02"))
-		fmt.Printf("Ports: %v\n", s.Config.Ports)
-	}
+	const date_form = "2006-01-02T15:04:05Z"
+	alpha_time, _ := time.Parse(date_form, "1987-07-05T05:45:00Z")
+	beta_time, _ := time.Parse(date_form, "1887-01-05T05:55:00Z")
 
-	// Output:
-	// Server: alpha (ip: 10.0.0.1) in Toronto created on 1987-07-05
-	// Ports: [8001 8002]
-	// Server: beta (ip: 10.0.0.2) in New Jersey created on 1887-01-05
-	// Ports: [9001 9002]
+	expected_servers := map[string]interface{}{
+		"alpha": map[string]interface{}{"ip": "10.0.0.1",
+			"config": &serverConfig{Ports: []int{8001, 8002},
+				Location: "Toronto",
+				Created:  alpha_time,
+			},
+		},
+		"beta": map[string]interface{}{"ip": "10.0.0.2",
+			"config": &serverConfig{Ports: []int{9001, 9002},
+				Location: "New Jersey",
+				Created:  beta_time,
+			},
+		}}
+
+	for _, name := range []string{"alpha", "beta"} {
+		actual_node := config[name]
+
+		expected_node := expected_servers[name].(map[string]interface{})
+
+		actual_config := actual_node.Config
+		expected_config := expected_node["config"].(*serverConfig)
+
+		c.Expect(actual_node.IP, gs.Equals, expected_node["ip"])
+
+		c.Expect(actual_config.Location, gs.Equals, expected_config.Location)
+		c.Expect(actual_config.Created, gs.Equals, expected_config.Created)
+
+		c.Expect(len(actual_config.Ports), gs.Equals, len(expected_config.Ports))
+		for idx, _ := range actual_config.Ports {
+			c.Expect(actual_config.Ports[idx], gs.Equals, expected_config.Ports[idx])
+		}
+	}
 }
 
 func ExampleDecodeStrict() {

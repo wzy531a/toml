@@ -29,6 +29,7 @@ func TestAllSpecs(t *testing.T) {
 	r.AddSpec(ExampleDecodeSpec)
 r.AddSpec(DecodeStrictSpec)
 r.AddSpec(PrimitiveDecodeStrictSpec)
+r.AddSpec(DelegateDecodeStrictSpec)
 
 	gospec.MainGoTest(r, t)
 }

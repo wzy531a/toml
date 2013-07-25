@@ -1,7 +1,6 @@
 package toml
 
 import (
-	"fmt"
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
@@ -198,9 +197,8 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		primValue := music.Bands[artist]
 
 		var aBand band
-		if err = PrimitiveDecode(primValue, &aBand); err != nil {
-			log.Fatal(err)
-		}
+		err = PrimitiveDecode(primValue, &aBand)
+		c.Assume(err, gs.IsNil)
 		c.Assume(expected_artists[artist], gs.Equals, aBand.Started)
 	}
 }
@@ -322,7 +320,7 @@ ip = "10.0.0.1"
 
 }
 
-func ExamplePrimitiveDecodeStrict() {
+func PrimitiveDecodeStrictSpec(c gs.Context) {
 	var md MetaData
 	var err error
 
@@ -352,13 +350,11 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 
 	// Do the initial decode. Reflection is delayed on Primitive values.
 	var music classics
-	if md, err = Decode(tomlBlob, &music); err != nil {
-		fmt.Println(err.Error())
-	}
+	md, err = Decode(tomlBlob, &music)
+	c.Assume(err, gs.IsNil)
 
 	// MetaData still includes information on Primitive values.
-	fmt.Printf("Is `bands.Springsteen` defined? %v\n",
-		md.IsDefined("bands", "Springsteen"))
+	c.Assume(md.IsDefined("bands", "Springsteen"), gs.IsTrue)
 
 	ignore_type := map[string]interface{}{"type": true}
 	// Decode primitive data into Go values.
@@ -368,15 +364,15 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		primValue := music.Bands[artist]
 
 		var aBand band
-		if err = PrimitiveDecodeStrict(primValue, &aBand, ignore_type); err != nil {
-			fmt.Println(err.Error())
+		err = PrimitiveDecodeStrict(primValue, &aBand, ignore_type)
+		if artist == "Springsteen" {
+			c.Expect(err.Error(), gs.Equals, "Configuration contains key [not_albums] which doesn't exist in struct")
+			// Note that an error in parsing means that the structure
+			// will *not* provide a valid parse
+			c.Assume(0, gs.Equals, aBand.Started)
+		} else {
+			c.Expect(err, gs.IsNil)
+			c.Assume(1970, gs.Equals, aBand.Started)
 		}
-		fmt.Printf("%s started in %d.\n", artist, aBand.Started)
 	}
-
-	// Output:
-	// Is `bands.Springsteen` defined? true
-	// Configuration contains key [not_albums] which doesn't exist in struct
-	// Springsteen started in 0.
-	// J Geils started in 1970.
 }

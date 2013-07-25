@@ -281,7 +281,7 @@ func ExampleDecodeSpec(c gs.Context) {
 	}
 }
 
-func ExampleDecodeStrict() {
+func DecodeStrictSpec(c gs.Context) {
 	var tomlBlob = `
 # Some comments.
 [alpha]
@@ -307,28 +307,18 @@ ip = "10.0.0.1"
 	type servers map[string]server
 
 	var config servers
-	empty_ignore := map[string]interface{}{}
-
-	if _, err := DecodeStrict(tomlBlob, &config, empty_ignore); err != nil {
-		fmt.Printf("%s\n", err.Error())
-	}
-
 	var val simple
 	var err error
+	empty_ignore := map[string]interface{}{}
+
+	_, err = DecodeStrict(tomlBlob, &config, empty_ignore)
+	c.Assume(err.Error(), gs.Equals, "Configuration contains key [Port] which doesn't exist in struct")
 
 	_, err = DecodeStrict(testSimple, &val, empty_ignore)
-	if err != nil {
-		fmt.Printf("%s\n", err.Error())
-	}
+	c.Assume(err, gs.IsNil)
 
 	_, err = DecodeStrict(testBadArg, &val, empty_ignore)
-	if err != nil {
-		fmt.Printf("%s\n", err.Error())
-	}
-
-	// Output:
-	// Configuration contains key [Port] which doesn't exist in struct
-	// Configuration contains key [not_andrew] which doesn't exist in struct
+	c.Assume(err.Error(), gs.Equals, "Configuration contains key [not_andrew] which doesn't exist in struct")
 
 }
 

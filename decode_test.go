@@ -2,6 +2,7 @@ package toml
 
 import (
 	"fmt"
+	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
 	"testing"
@@ -66,20 +67,21 @@ type simple struct {
 	Annoying map[string]kitties
 }
 
-func TestDecode(t *testing.T) {
+func DecodeSpec(c gs.Context) {
 	var val simple
 
 	md, err := Decode(testSimple, &val)
-	if err != nil {
-		t.Fatal(err)
+	c.Assume(err, gs.IsNil)
+	c.Assume(md.IsDefined("Annoying", "Cats", "plato"), gs.IsTrue)
+	c.Assume(md.IsDefined("Cats", "Stinky"), gs.IsFalse)
+	var colors = [][]string{[]string{"red", "green", "blue"},
+		[]string{"cyan", "magenta", "yellow", "black"}}
+	for ridx, row := range colors {
+		for cidx, _ := range row {
+			c.Assume(val.Colors[ridx][cidx], gs.Equals, colors[ridx][cidx])
+		}
 	}
-
-	testf("Is 'Annoying.Cats.plato' defined? %v\n",
-		md.IsDefined("Annoying", "Cats", "plato"))
-	testf("Is 'Cats.Stinky' defined? %v\n", md.IsDefined("Cats", "Stinky"))
-	testf("Type of 'colors'? %s\n\n", md.Type("colors"))
-
-	testf("%v\n", val)
+	c.Assume(val, gs.Not(gs.IsNil))
 }
 
 // Case insensitive matching tests.

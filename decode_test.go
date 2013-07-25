@@ -5,7 +5,6 @@ import (
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
-	"testing"
 	"time"
 )
 
@@ -128,7 +127,7 @@ type InsensitiveEd struct {
 	NestedString string
 }
 
-func TestCase(t *testing.T) {
+func InsensitiveDecodeSpec(c gs.Context) {
 	tme, err := time.Parse(time.RFC3339, time.RFC3339[:len(time.RFC3339)-5])
 	if err != nil {
 		panic(err)
@@ -151,12 +150,8 @@ func TestCase(t *testing.T) {
 	}
 	var got Insensitive
 	_, err = Decode(caseToml, &got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(expected, got) {
-		t.Fatalf("\n%#v\n!=\n%#v\n", expected, got)
-	}
+	c.Assume(err, gs.IsNil)
+	c.Assume(reflect.DeepEqual(expected, got), gs.IsTrue)
 }
 
 func ExamplePrimitiveDecode() {

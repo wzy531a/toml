@@ -154,7 +154,7 @@ func InsensitiveDecodeSpec(c gs.Context) {
 	c.Assume(reflect.DeepEqual(expected, got), gs.IsTrue)
 }
 
-func ExamplePrimitiveDecode() {
+func ExamplePrimitiveDecodeSpec(c gs.Context) {
 	var md MetaData
 	var err error
 
@@ -187,10 +187,11 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 	}
 
 	// MetaData still includes information on Primitive values.
-	fmt.Printf("Is `bands.Springsteen` defined? %v\n",
-		md.IsDefined("bands", "Springsteen"))
+	c.Assume(md.IsDefined("bands", "Springsteen"), gs.IsTrue)
 
 	// Decode primitive data into Go values.
+	expected_artists := map[string]int{"Springsteen": 1973, "J Geils": 1970}
+
 	for _, artist := range music.Ranking {
 		// A band is a primitive value, so we need to decode it to get a
 		// real `band` value.
@@ -200,13 +201,8 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		if err = PrimitiveDecode(primValue, &aBand); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("%s started in %d.\n", artist, aBand.Started)
+		c.Assume(expected_artists[artist], gs.Equals, aBand.Started)
 	}
-
-	// Output:
-	// Is `bands.Springsteen` defined? true
-	// Springsteen started in 1973.
-	// J Geils started in 1970.
 }
 
 func ExampleDecode() {

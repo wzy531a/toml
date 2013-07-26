@@ -421,7 +421,8 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		c.Assume(err, gs.IsNil)
 		fmt.Printf("md.mapping kind(): %s\n", reflect.TypeOf(md.mapping))
 		// TODO: do the strict comparison in a separate function
-		CheckType(md.mapping, reflect.ValueOf(music))
+		err = CheckType(md.mapping, reflect.ValueOf(music))
+		c.Assume(err, gs.IsNil)
 	})
 }
 

@@ -49,7 +49,7 @@ func CheckType(data interface{}, thestruct reflect.Value) (err error) {
 	dType := reflect.TypeOf(data)
 	dKind := dType.Kind()
 
-	fmt.Printf("Checking :%s\n", dKind)
+	fmt.Printf("=============Checking : %s\n", dKind)
 	if dKind >= reflect.Int && dKind <= reflect.Uint64 {
 		return fmt.Errorf("Not implemented")
 	}
@@ -57,16 +57,25 @@ func CheckType(data interface{}, thestruct reflect.Value) (err error) {
 	case reflect.Map:
 		dataMap := data.(map[string]interface{})
 		for k, v := range dataMap {
-			fmt.Printf("k = [%s] v = %r\n", k, v)
-			if err = CheckTypeMap(k, v, thestruct.FieldByName(k)); err != nil {
+			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
+			fmt.Printf("CheckTypeMap: checking subkey=[%s]\n", v)
+			if err = CheckType(v, thestruct.FieldByName(k)); err != nil {
 				return err
 			}
 		}
 		return nil
 	case reflect.Slice:
-		return fmt.Errorf("Not implemented")
+		dataSlice := data.([]interface{})
+		for k, v := range dataSlice {
+			fmt.Printf("CheckTypeSlice: key=[%s] data=%r\n", k, dataSlice)
+			fmt.Printf("CheckTypeSlice: checking subValue=[%s]\n", v)
+			if err = CheckType(v, reflect.ValueOf(v)); err != nil {
+				return err
+			}
+		}
+		return nil
 	case reflect.String:
-		return fmt.Errorf("Not implemented")
+		return fmt.Errorf("String Not implemented")
 	case reflect.Bool:
 		return fmt.Errorf("Not implemented")
 	case reflect.Interface:

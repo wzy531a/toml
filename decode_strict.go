@@ -35,6 +35,58 @@ func DecodeStrict(data string,
 	return
 }
 
+func CheckTypeMap(key string, data interface{}, thestruct reflect.Value) (err error) {
+	fmt.Printf("==========CheckTypeMap key:[%s]=======\n", key)
+
+	fmt.Printf("CheckTypeMap: data=%r\n", data)
+	fmt.Printf("CheckTypeMap: struct.Kind=%r\n", thestruct.Kind())
+	fmt.Println("--------------------")
+	return nil
+}
+
+func CheckType(data interface{}, thestruct reflect.Value) (err error) {
+
+	dType := reflect.TypeOf(data)
+	dKind := dType.Kind()
+
+	fmt.Printf("Checking :%s\n", dKind)
+	if dKind >= reflect.Int && dKind <= reflect.Uint64 {
+		return fmt.Errorf("Not implemented")
+	}
+	switch dKind {
+	case reflect.Map:
+		dataMap := data.(map[string]interface{})
+		for k, v := range dataMap {
+			fmt.Printf("k = [%s] v = %r\n", k, v)
+			if err = CheckTypeMap(k, v, thestruct.FieldByName(k)); err != nil {
+				return err
+			}
+		}
+		return nil
+	case reflect.Slice:
+		return fmt.Errorf("Not implemented")
+	case reflect.String:
+		return fmt.Errorf("Not implemented")
+	case reflect.Bool:
+		return fmt.Errorf("Not implemented")
+	case reflect.Interface:
+		// we only support empty interfaces.
+		if dType.NumMethod() > 0 {
+			e("Unsupported type '%s'.", dKind)
+		}
+		return nil
+	case reflect.Float32, reflect.Float64:
+		return fmt.Errorf("Not implemented")
+	case reflect.Array:
+		return fmt.Errorf("Not implemented")
+	case reflect.Struct:
+		return fmt.Errorf("Not implemented")
+	default:
+		return fmt.Errorf("Not implemented")
+	}
+	return nil
+}
+
 /////////////
 // verify performs a sort of type unification based on the structure of `rv`,
 // which is the client representation.

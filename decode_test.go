@@ -1,6 +1,7 @@
 package toml
 
 import (
+	"fmt"
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
@@ -382,8 +383,46 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 			c.Assume(0, gs.Equals, aBand.Started)
 		}
 
-		// TODO: verify artists
 	}
+}
+
+func MetaDataSpec(c gs.Context) {
+	var err error
+
+	var tomlBlob = `
+ranking = ["Springsteen", "J Geils"]
+
+[bands.Springsteen]
+type = "ignore_this"
+started = 1973
+albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
+not_albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
+
+[bands.J Geils]
+started = 1970
+albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
+`
+
+	type band struct {
+		Started int
+		Albums  []string
+	}
+
+	type classics struct {
+		Ranking []string
+		Bands   map[string]Primitive
+	}
+
+	c.Specify("check mapping", func() {
+		// Do the initial decode. Reflection is delayed on Primitive values.
+		var music classics
+		var md MetaData
+		md, err = Decode(tomlBlob, &music)
+		c.Assume(err, gs.IsNil)
+		fmt.Printf("md.mapping kind(): %s\n", reflect.TypeOf(md.mapping))
+		// TODO: do the strict comparison in a separate function
+		CheckType(md.mapping, reflect.ValueOf(music))
+	})
 }
 
 func DelegateDecodeStrictSpec(c gs.Context) {

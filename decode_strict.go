@@ -35,16 +35,7 @@ func DecodeStrict(data string,
 	return
 }
 
-func CheckTypeMap(key string, data interface{}, thestruct reflect.Value) (err error) {
-	fmt.Printf("==========CheckTypeMap key:[%s]=======\n", key)
-
-	fmt.Printf("CheckTypeMap: data=%r\n", data)
-	fmt.Printf("CheckTypeMap: struct.Kind=%r\n", thestruct.Kind())
-	fmt.Println("--------------------")
-	return nil
-}
-
-func CheckType(data interface{}, thestruct reflect.Value) (err error) {
+func CheckType(data interface{}, thestruct interface{}) (err error) {
 
 	dType := reflect.TypeOf(data)
 	dKind := dType.Kind()
@@ -59,21 +50,21 @@ func CheckType(data interface{}, thestruct reflect.Value) (err error) {
 		for k, v := range dataMap {
 			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
 			fmt.Printf("CheckTypeMap: checking subkey=[%s]\n", v)
-			if err = CheckType(v, thestruct.FieldByName(k)); err != nil {
-				return err
+
+			s := reflect.ValueOf(thestruct)
+			typeOfT := s.Type()
+			for i := 0; i < s.NumField(); i++ {
+				f := s.Field(i)
+				fmt.Printf("%d: %s %s = %v\n", i,
+					typeOfT.Field(i).Name,
+					f.Type(),
+					f.Interface())
 			}
+
 		}
 		return nil
 	case reflect.Slice:
-		dataSlice := data.([]interface{})
-		for k, v := range dataSlice {
-			fmt.Printf("CheckTypeSlice: key=[%s] data=%r\n", k, dataSlice)
-			fmt.Printf("CheckTypeSlice: checking subValue=[%s]\n", v)
-			if err = CheckType(v, reflect.ValueOf(v)); err != nil {
-				return err
-			}
-		}
-		return nil
+		return fmt.Errorf("Slice Not implemented")
 	case reflect.String:
 		return fmt.Errorf("String Not implemented")
 	case reflect.Bool:

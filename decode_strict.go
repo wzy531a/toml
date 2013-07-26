@@ -3,6 +3,7 @@ package toml
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -35,6 +36,15 @@ func DecodeStrict(data string,
 	return
 }
 
+func Contains(list []string, elem string) bool {
+	for _, t := range list {
+		if t == elem {
+			return true
+		}
+	}
+	return false
+}
+
 func CheckType(data interface{}, thestruct interface{}) (err error) {
 
 	dType := reflect.TypeOf(data)
@@ -51,14 +61,33 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
 			fmt.Printf("CheckTypeMap: checking subkey=[%s]\n", v)
 
+			var fieldNames = make([]string, 0)
+			var origFieldNames = make(map[string]string)
 			s := reflect.ValueOf(thestruct)
 			typeOfT := s.Type()
+
+			for i := 0; i < s.NumField(); i++ {
+				lFieldname := strings.ToLower(typeOfT.Field(i).Name)
+				fieldNames = append(fieldNames, lFieldname)
+				origFieldNames[lFieldname] = typeOfT.Field(i).Name
+			}
+
+			for k, _ := range dataMap {
+				lKeyName := strings.ToLower(k)
+				if !Contains(fieldNames, lKeyName) {
+					fmt.Printf("Can't find field [%s] in struct\n", k)
+				} else {
+					fmt.Printf("Found [%s] in struct as [%s]\n", k, origFieldNames[lKeyName])
+				}
+			}
+
 			for i := 0; i < s.NumField(); i++ {
 				f := s.Field(i)
-				fmt.Printf("%d: %s %s = %v\n", i,
+				fmt.Printf("%d: %s %s = %v\n\tField: %r\n", i,
 					typeOfT.Field(i).Name,
 					f.Type(),
-					f.Interface())
+					f.Interface(),
+					f)
 			}
 
 		}

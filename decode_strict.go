@@ -61,11 +61,11 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
 			fmt.Printf("CheckTypeMap: checking subkey=[%s]\n", v)
 
+			// Build dictionaries up to do field lookups
 			var fieldNames = make([]string, 0)
 			var origFieldNames = make(map[string]string)
 			s := reflect.ValueOf(thestruct)
 			typeOfT := s.Type()
-
 			for i := 0; i < s.NumField(); i++ {
 				lFieldname := strings.ToLower(typeOfT.Field(i).Name)
 				fieldNames = append(fieldNames, lFieldname)
@@ -75,20 +75,29 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 			for k, _ := range dataMap {
 				lKeyName := strings.ToLower(k)
 				if !Contains(fieldNames, lKeyName) {
-					fmt.Printf("Can't find field [%s] in struct\n", k)
+					return fmt.Errorf("Can't find field [%s] in struct\n", k)
 				} else {
 					fmt.Printf("Found [%s] in struct as [%s]\n", k, origFieldNames[lKeyName])
+					f, ok := typeOfT.FieldByName(origFieldNames[lKeyName])
+					if !ok {
+						return fmt.Errorf("Can't find original field [%s]\n", origFieldNames[lKeyName])
+					}
+					if err = CheckType(dataMap[k], f); err != nil {
+						return err
+					}
 				}
 			}
 
-			for i := 0; i < s.NumField(); i++ {
-				f := s.Field(i)
-				fmt.Printf("%d: %s %s = %v\n\tField: %r\n", i,
-					typeOfT.Field(i).Name,
-					f.Type(),
-					f.Interface(),
-					f)
-			}
+			/*
+				for i := 0; i < s.NumField(); i++ {
+					f := s.Field(i)
+					fmt.Printf("%d: %s %s = %v\n\tField: %r\n", i,
+						typeOfT.Field(i).Name,
+						f.Type(),
+						f.Interface(),
+						f)
+				}
+			*/
 
 		}
 		return nil

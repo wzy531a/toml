@@ -71,7 +71,7 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 				fieldNames = append(fieldNames, lFieldname)
 				origFieldNames[lFieldname] = typeOfT.Field(i).Name
 			}
-
+			// Find all keys from map in the datastructure
 			for k, _ := range dataMap {
 				lKeyName := strings.ToLower(k)
 				if !Contains(fieldNames, lKeyName) {
@@ -87,24 +87,39 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 					}
 				}
 			}
-
-			/*
-				for i := 0; i < s.NumField(); i++ {
-					f := s.Field(i)
-					fmt.Printf("%d: %s %s = %v\n\tField: %r\n", i,
-						typeOfT.Field(i).Name,
-						f.Type(),
-						f.Interface(),
-						f)
-				}
-			*/
-
 		}
 		return nil
 	case reflect.Slice:
-		return fmt.Errorf("Slice Not implemented")
+		dataSlice := data.([]interface{})
+		for k, v := range dataSlice {
+			fmt.Printf("CheckTypeSlice: key=[%s] data=%r\n", k, dataSlice)
+			fmt.Printf("CheckTypeSlice: checking subkey=[%s]\n", v)
+
+			// Build dictionaries up to do field lookups
+			s := reflect.ValueOf(thestruct)
+			typeOfT := s.Type()
+
+			fmt.Printf("Items in slice : %d\n", len(dataSlice))
+			for idx, item := range dataSlice {
+				fmt.Printf("Fetching subfield from slice @ index: [%d]\n", idx)
+				f := typeOfT.FieldByIndex([]int{idx})
+				if err = CheckType(item, f); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	case reflect.String:
-		return fmt.Errorf("String Not implemented")
+		dataStr := data.(string)
+		fmt.Printf("CheckTypeString: key=[%s]\n", dataStr)
+		fmt.Printf("CheckTypeString: thestruct=[%s]\n", thestruct)
+		final_type := thestruct.(reflect.StructField).Type.Name()
+		if final_type != "string" {
+			return fmt.Errorf("Error mapping [%s] to type [%s]\n", dataStr, final_type)
+		} else {
+			fmt.Printf("Woot!  String matched [%s] to type [%s]\n", dataStr, final_type)
+		}
+		return nil
 	case reflect.Bool:
 		return fmt.Errorf("Not implemented")
 	case reflect.Interface:

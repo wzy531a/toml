@@ -69,6 +69,10 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	}
 	switch dKind {
 	case reflect.Map:
+		// When the incoming data is a map, we're either mapping to a
+		// data to an unnamed map type, or a struct.
+
+		// Deal with the case where we've got a map first.
 		structType, ok := thestruct.(reflect.Type)
 		if ok {
 			if structType.Kind() == reflect.Map {
@@ -77,12 +81,40 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 				// Ok, this is an interface on the *struct* - just
 				// leave it alone since we want that to be allowed
 				// TODO: iterate over the k/v pairs in the data
-				//
+				dataMap := data.(map[string]interface{})
+				for _, v := range dataMap {
+					sType := structType.Elem()
+
+					// 2 broad cases.  It's map to interface{} or a
+					// map to something else.
+					if sType.Kind() == reflect.Interface {
+						fmt.Printf("NumMethods: [%d]\n",
+							sType.NumMethod())
+						if sType.NumMethod() == 0 {
+							fmt.Printf("Sweet.  The struct is an empty interface. Terminate!\n")
+							return nil
+						} else {
+							return fmt.Errorf("We don't write data to non-empty interfaces around here\n")
+						}
+					}
+
+					// For all non-interface{} elem maps, we just
+					// recurse down with another call to CheckType
+					if err = CheckType(v, sType); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
+			return fmt.Errorf("Incoming datastructure is a type, but not an unnamed map.  data:[%s] struct:[%s]", data, thestruct)
 		}
 
-		structType, ok := thestruct.(reflect.Struct)
+		tmpType := reflect.TypeOf(thestruct)
+		if tmpType.Kind() != reflect.Struct {
+			return fmt.Errorf("Error mapping data to invalid type.  data=[%s] thestruct=[%s]", 
+            data, thestruct)
+		}
+
 		dataMap := data.(map[string]interface{})
 		for k, v := range dataMap {
 			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)

@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+var typeOfStringSlice = reflect.TypeOf([]string(nil))
+var typeOfIntSlice = reflect.TypeOf([]int(nil))
+
 // Same as PrimitiveDecode but adds a strict verification
 func PrimitiveDecodeStrict(primValue Primitive,
 	v interface{},
@@ -50,7 +53,9 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	dType := reflect.TypeOf(data)
 	dKind := dType.Kind()
 
-	fmt.Printf("=============Checking : %s\n", dKind)
+	fmt.Printf("=============Checking data   : %s\n", dKind)
+	fmt.Printf("=============Checking struct : %s\n", thestruct)
+
 	if dKind >= reflect.Int && dKind <= reflect.Uint64 {
 		return fmt.Errorf("Not implemented")
 	}
@@ -72,6 +77,10 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 				origFieldNames[lFieldname] = typeOfT.Field(i).Name
 			}
 			// Find all keys from map in the datastructure
+			// Maps can map down to either golang
+			// map[string]interface{} types or to actual golang
+			// structs
+
 			for k, _ := range dataMap {
 				lKeyName := strings.ToLower(k)
 				if !Contains(fieldNames, lKeyName) {
@@ -82,7 +91,8 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 					if !ok {
 						return fmt.Errorf("Can't find original field [%s]\n", origFieldNames[lKeyName])
 					}
-					if err = CheckType(dataMap[k], f); err != nil {
+					fmt.Printf("Nested type is : [%s]\n", f.Type)
+					if err = CheckType(dataMap[k], f.Type); err != nil {
 						return err
 					}
 				}
@@ -91,36 +101,36 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 		return nil
 	case reflect.Slice:
 		dataSlice := data.([]interface{})
+		// Get the underlying type of the slice in the struct
+		structSliceElem := reflect.ValueOf(thestruct).MethodByName("Elem").Call(nil)[0].Interface()
+
+		fmt.Printf("structType: [%s]\n", thestruct)
+		fmt.Printf("DynElem(): %s\n", structSliceElem)
+
 		for k, v := range dataSlice {
 			fmt.Printf("CheckTypeSlice: key=[%s] data=%r\n", k, dataSlice)
 			fmt.Printf("CheckTypeSlice: checking subkey=[%s]\n", v)
 
 			// Build dictionaries up to do field lookups
-			s := reflect.ValueOf(thestruct)
-			typeOfT := s.Type()
 
 			fmt.Printf("Items in slice : %d\n", len(dataSlice))
-			for idx, item := range dataSlice {
-				fmt.Printf("Fetching subfield from slice @ index: [%d]\n", idx)
-				f := typeOfT.FieldByIndex([]int{idx})
-				if err = CheckType(item, f); err != nil {
-					return err
-				}
+			// Check each of the items in our dataslice against the
+			// underlying type of the slice type we are mapping onto
+			if err = CheckType(v, structSliceElem); err != nil {
+				return err
 			}
 		}
 		return nil
 	case reflect.String:
-		dataStr := data.(string)
-		fmt.Printf("CheckTypeString: key=[%s]\n", dataStr)
-		fmt.Printf("CheckTypeString: thestruct=[%s]\n", thestruct)
-		final_type := thestruct.(reflect.StructField).Type.Name()
-		if final_type != "string" {
-			return fmt.Errorf("Error mapping [%s] to type [%s]\n", dataStr, final_type)
-		} else {
-			fmt.Printf("Woot!  String matched [%s] to type [%s]\n", dataStr, final_type)
+		structType := thestruct.(reflect.Type)
+		if structType.Kind() == reflect.String {
+			fmt.Printf("golang's reflect API will kill me.  string type matched.\n")
+			return nil
 		}
-		return nil
+		dataStr := data.(string)
+		return fmt.Errorf("Error mapping [%s] to type [string]\n", dataStr)
 	case reflect.Bool:
+		// TODO: do the same thing as reflect.String
 		return fmt.Errorf("Not implemented")
 	case reflect.Interface:
 		// we only support empty interfaces.
@@ -129,13 +139,19 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 		}
 		return nil
 	case reflect.Float32, reflect.Float64:
+		// TODO: do the same thing as reflect.String
 		return fmt.Errorf("Not implemented")
 	case reflect.Array:
+		// TODO: do the same thing as reflect.Slice
 		return fmt.Errorf("Not implemented")
 	case reflect.Struct:
+		// TODO: pretty sure this is impossible, the incoming data
+		// isn't going to be a struct except for maybe datetime which
+		// should be handled before the switch/case statement
 		return fmt.Errorf("Not implemented")
 	default:
-		return fmt.Errorf("Not implemented")
+		return fmt.Errorf("Unrecognized Type in the parsed data. data: [%s]  type:[%s]", 
+        data, dType)
 	}
 	return nil
 }

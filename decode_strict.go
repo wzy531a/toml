@@ -56,11 +56,33 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	fmt.Printf("=============Checking data   : %s\n", dKind)
 	fmt.Printf("=============Checking struct : %s\n", thestruct)
 
+	// Special case. Go's `time.Time` is a struct, which we don't want
+	// to confuse with a user struct.
+	if reflect.ValueOf(thestruct).Type().AssignableTo(rvalue(time.Time{}).Type()) {
+		// TODO: deal with time.Time types
+		fmt.Printf("TODO: handle time.Time types\n")
+		return nil
+	}
+
 	if dKind >= reflect.Int && dKind <= reflect.Uint64 {
 		return fmt.Errorf("Not implemented")
 	}
 	switch dKind {
 	case reflect.Map:
+		structType, ok := thestruct.(reflect.Type)
+		if ok {
+			if structType.Kind() == reflect.Map {
+				fmt.Printf("Elem Kind: [%s]\n", structType.Elem().Kind())
+				// toml was mapped into an interface type
+				// Ok, this is an interface on the *struct* - just
+				// leave it alone since we want that to be allowed
+				// TODO: iterate over the k/v pairs in the data
+				//
+				return nil
+			}
+		}
+
+		structType, ok := thestruct.(reflect.Struct)
 		dataMap := data.(map[string]interface{})
 		for k, v := range dataMap {
 			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
@@ -91,7 +113,7 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 					if !ok {
 						return fmt.Errorf("Can't find original field [%s]\n", origFieldNames[lKeyName])
 					}
-					fmt.Printf("Nested type is : [%s]\n", f.Type)
+					fmt.Printf("Nested type is : [%s]\n\t[%s]\n", f, f.Type)
 					if err = CheckType(dataMap[k], f.Type); err != nil {
 						return err
 					}
@@ -150,8 +172,8 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 		// should be handled before the switch/case statement
 		return fmt.Errorf("Not implemented")
 	default:
-		return fmt.Errorf("Unrecognized Type in the parsed data. data: [%s]  type:[%s]", 
-        data, dType)
+		return fmt.Errorf("Unrecognized Type in the parsed data. data: [%s]  type:[%s]",
+			data, dType)
 	}
 	return nil
 }

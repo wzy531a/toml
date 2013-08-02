@@ -54,7 +54,7 @@ func DecodeStrictSpec(c gs.Context) {
 ip = "10.0.0.1"
 
 	[alpha.config]
-	Port = [ 8001, 8002 ]
+	Ports = [8001, 8002]
 	Location = "Toronto"
 	Created = 1987-07-05T05:45:00Z
 `
@@ -66,8 +66,8 @@ ip = "10.0.0.1"
 	}
 
 	type server struct {
-		IP     string       `toml:"ip"`
-		Config serverConfig `toml:"config"`
+		IPAddress string       `toml:"ip"`
+		Config    serverConfig `toml:"config"`
 	}
 
 	type servers map[string]server

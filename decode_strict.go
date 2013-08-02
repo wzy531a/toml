@@ -117,14 +117,14 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 
 	structAsType, structAsTypeOk = thestruct.(reflect.Type)
 
-	if !structAsTypeOk {
-		structAsValue = reflect.ValueOf(thestruct)
-		structAsValueType = structAsValue.Type()
-		structAsValueKind = structAsValueType.Kind()
-		structAsValueKind = structAsValueType.Kind()
-	}
+	structAsValue = reflect.ValueOf(thestruct)
+	structAsValueType = structAsValue.Type()
+	structAsValueKind = structAsValueType.Kind()
+	structAsValueKind = structAsValueType.Kind()
 	fmt.Printf("dType: %s\n", dType)
 	fmt.Printf("dKind: %s\n", dKind)
+	fmt.Printf("thestruct : %s\n", thestruct)
+	fmt.Printf("structAsType: %t\n", structAsType)
 	fmt.Printf("structAsTypeOk: %t\n", structAsTypeOk)
 	fmt.Printf("structAsValue: %s\n", structAsValue)
 	fmt.Printf("structAsValueType: %s\n", structAsValueType)
@@ -149,7 +149,6 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	} else {
 		return checkTypeStructAsValue(data, structAsValue)
 	}
-	return nil
 }
 
 func checkTypeStructAsValue(data interface{}, structAsValue reflect.Value) (err error) {

@@ -1,7 +1,6 @@
 package toml
 
 import (
-	"fmt"
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
@@ -285,48 +284,6 @@ func ExampleDecodeSpec(c gs.Context) {
 	// Ports: [9001 9002]
 }
 
-func DecodeStrictSpec(c gs.Context) {
-	var tomlBlob = `
-# Some comments.
-[alpha]
-ip = "10.0.0.1"
-
-	[alpha.config]
-	Port = [ 8001, 8002 ]
-	Location = "Toronto"
-	Created = 1987-07-05T05:45:00Z
-`
-
-	type serverConfig struct {
-		Ports    []int
-		Location string
-		Created  time.Time
-	}
-
-	type server struct {
-		IP     string       `toml:"ip"`
-		Config serverConfig `toml:"config"`
-	}
-
-	type servers map[string]server
-
-	var config servers
-	var val simple
-	var err error
-
-	empty_ignore := map[string]interface{}{}
-
-	_, err = DecodeStrict(tomlBlob, &config, empty_ignore)
-	c.Assume(err.Error(), gs.Equals, "Configuration contains key [Port] which doesn't exist in struct")
-
-	_, err = DecodeStrict(testSimple, &val, empty_ignore)
-	c.Assume(err, gs.IsNil)
-
-	_, err = DecodeStrict(testBadArg, &val, empty_ignore)
-	c.Assume(err.Error(), gs.Equals, "Configuration contains key [not_andrew] which doesn't exist in struct")
-
-}
-
 func PrimitiveDecodeStrictSpec(c gs.Context) {
 	var md MetaData
 	var err error
@@ -386,45 +343,6 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 	}
 }
 
-func MetaDataSpec(c gs.Context) {
-	var err error
-
-	var tomlBlob = `
-ranking = ["Springsteen", "J Geils"]
-
-[bands.Springsteen]
-type = "ignore_this"
-started = 1973
-albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
-not_albums = ["Greetings", "WIESS", "Born to Run", "Darkness"]
-
-[bands.J Geils]
-started = 1970
-albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
-`
-
-	type band struct {
-		Started int
-		Albums  []string
-	}
-
-	type classics struct {
-		Ranking []string
-		Bands   map[string]Primitive
-	}
-
-	c.Specify("check mapping", func() {
-		// Do the initial decode. Reflection is delayed on Primitive values.
-		var music classics
-		var md MetaData
-		md, err = Decode(tomlBlob, &music)
-		c.Assume(err, gs.IsNil)
-		fmt.Printf("md.mapping kind(): %s\n", reflect.TypeOf(md.mapping))
-		// TODO: do the strict comparison in a separate function
-		err = CheckType(md.mapping, music)
-		c.Assume(err, gs.IsNil)
-	})
-}
 
 func DelegateDecodeStrictSpec(c gs.Context) {
 

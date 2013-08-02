@@ -34,7 +34,6 @@ func DecodeStrict(data string,
 		return
 	}
 
-	fmt.Printf("\n-------------------\nmetadata from DecodeStrict: %r\n", m)
 	err = verify(m.mapping, rvalue(v), ignore_fields)
 	return
 }
@@ -48,13 +47,234 @@ func Contains(list []string, elem string) bool {
 	return false
 }
 
+func checkStructType(data interface{}, s reflect.Type) (err error) {
+	fmt.Printf("====== checkStructType \n")
+	// the other case - map data to a struct type
+	dataMap := data.(map[string]interface{})
+	for k, v := range dataMap {
+		fmt.Printf("CheckTypeMap: k=[%s]\n", k)
+		fmt.Printf("CheckTypeMap: v=[%s]\n", v)
+
+		// Build dictionaries up to do field lookups
+		var fieldNames = make([]string, 0)
+		var origFieldNames = make(map[string]string)
+
+		fmt.Printf("s NumMethod: %d\n", s.NumMethod())
+		fmt.Printf("s NumField: %d\n", s.NumField())
+
+		for i := 0; i < s.NumField(); i++ {
+			lFieldname := strings.ToLower(s.Field(i).Name)
+			fieldNames = append(fieldNames, lFieldname)
+			origFieldNames[lFieldname] = s.Field(i).Name
+		}
+		// Find all keys from map in the datastructure
+		// Maps can map down to either golang
+		// map[string]interface{} types or to actual golang
+		// structs
+
+		for k, _ := range dataMap {
+			fmt.Printf("dataMap key: [%s]\n", k)
+		}
+
+		for _, v := range fieldNames {
+			fmt.Printf("field name: [%s]\n", v)
+		}
+
+		for k, _ := range dataMap {
+			lKeyName := strings.ToLower(k)
+			if !Contains(fieldNames, lKeyName) {
+				return fmt.Errorf("Can't find field [%s] in struct\n", k)
+			} else {
+				fmt.Printf("Found [%s] in struct as [%s]\n", k, origFieldNames[lKeyName])
+				f, ok := s.FieldByName(origFieldNames[lKeyName])
+				if !ok {
+					return fmt.Errorf("Can't find original field [%s]\n", origFieldNames[lKeyName])
+				}
+				fmt.Printf("Nested type is : [%s]\n\t[%s]\n", f, f.Type)
+				if err = CheckType(dataMap[k], f.Type); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	fmt.Printf("====== exit checkStructType ok\n")
+	return nil
+
+}
+
 func CheckType(data interface{}, thestruct interface{}) (err error) {
+	var dType reflect.Type
+	var dKind reflect.Kind
+	var structAsType reflect.Type
+	var structAsTypeOk bool
+	var structAsValue reflect.Value
+	var structAsValueType reflect.Type
+	var structAsValueKind reflect.Kind
+
+	fmt.Println("=============CheckType")
+	dType = reflect.TypeOf(data)
+	dKind = dType.Kind()
+
+	structAsType, structAsTypeOk = thestruct.(reflect.Type)
+
+	if !structAsTypeOk {
+		structAsValue = reflect.ValueOf(thestruct)
+		structAsValueType = structAsValue.Type()
+		structAsValueKind = structAsValueType.Kind()
+		structAsValueKind = structAsValueType.Kind()
+	}
+	fmt.Printf("dType: %s\n", dType)
+	fmt.Printf("dKind: %s\n", dKind)
+	fmt.Printf("structAsTypeOk: %t\n", structAsTypeOk)
+	fmt.Printf("structAsValue: %s\n", structAsValue)
+	fmt.Printf("structAsValueType: %s\n", structAsValueType)
+	fmt.Printf("structAsValueKind: %s\n", structAsValueKind)
+	fmt.Printf("structAsValueKind: %s\n", structAsValueKind)
+
+	// TODO:
+	// Special case. Go's `time.Time` is a struct, which we don't want
+	// to confuse with a user struct.
+	if reflect.ValueOf(thestruct).Type().AssignableTo(rvalue(time.Time{}).Type()) {
+		// TODO: deal with time.Time types
+		if dType.AssignableTo(rvalue(time.Time{}).Type()) {
+			fmt.Printf("Time type detected on incoming and assignable\n")
+			return nil
+		}
+
+		return fmt.Errorf("Invalid type came in for a time.Time gotyp")
+	}
+
+	if structAsTypeOk {
+		fmt.Printf("struct cast to reflect.Type [%s]\n", structAsType)
+		return checkTypeStructAsType(data, structAsType)
+	} else {
+		return checkTypeStructAsValue(data, structAsValue)
+	}
+	return nil
+}
+
+func checkTypeStructAsValue(data interface{}, structAsValue reflect.Value) (err error) {
+	fmt.Printf("-------\ncheckTypeStructAsValue data: [%s]\n\tstruct: [%s]\n", data, structAsValue)
+
+	// switch on the type for structAsValue and call the right check
+	structKind := structAsValue.Kind()
+	switch structKind {
+	case reflect.Map:
+		dataAsMap := data.(map[string]interface{})
+		// TODO: make sure all keys from dataMap are valid
+		for _, k := range structAsValue.MapKeys() {
+			keyString := k.Interface().(string)
+			fmt.Printf("Map Key: %s\n", keyString)
+			fmt.Printf("Data @ key: [%s]\n", dataAsMap[keyString])
+			structAtKey := structAsValue.MapIndex(k).Interface()
+			fmt.Printf("Struct @ key: [%s]\n", structAtKey)
+			fmt.Printf("Struct @ key Type: [%s]\n", structAsValue.MapIndex(k).Type())
+			fmt.Printf("Struct @ key Kind: [%s]\n", structAsValue.MapIndex(k).Type().Kind())
+			err = CheckType(dataAsMap[keyString], structAtKey)
+			if err != nil {
+				return err
+			}
+		}
+		// everything is ok
+		return nil
+	case reflect.Slice:
+		// TODO:
+		return fmt.Errorf("*** Not done yet! Slice")
+	case reflect.String:
+		_, ok := data.(string)
+		if ok {
+			fmt.Println("strings are ok")
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype string")
+	case reflect.Bool:
+		_, ok := data.(bool)
+		if ok {
+			fmt.Println("bool is ok")
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype bool")
+	case reflect.Interface:
+		if structAsValue.NumMethod() == 0 {
+			// Anything would be ok from the data side - just accept
+			// it
+
+			return nil
+		} else {
+			return fmt.Errorf("We don't write data to non-empty interfaces around here")
+		}
+	case reflect.Float32, reflect.Float64:
+		var ok bool
+		_, ok = data.(float32)
+		if ok {
+			fmt.Println("float32 is ok")
+			return nil
+		}
+		_, ok = data.(float64)
+		if ok {
+			fmt.Println("float64 is ok")
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype float64")
+	case reflect.Array:
+		// TODO:
+		return fmt.Errorf("*** Not done yet! Array")
+	case reflect.Struct:
+		typeOfStruct := structAsValue.Type()
+
+		dataMap := data.(map[string]interface{})
+		// TODO: need to iterate over each key in the data to make
+		// sure it exists in typeOfStruct
+		for i := 0; i < structAsValue.NumField(); i++ {
+			f := structAsValue.Field(i)
+			fieldName := typeOfStruct.Field(i).Name
+			fmt.Println("--Field info")
+			fmt.Printf("Field name in struct: [%s]\n", fieldName)
+			fieldInterface := f.Interface()
+			fmt.Printf("f.Interface() : %s\n", fieldInterface)
+			fmt.Printf("Type of field interface: %s\n", reflect.ValueOf(fieldInterface).Type())
+			// Now look up the data map
+			mapdata, ok := insensitiveGet(dataMap, fieldName)
+			if ok {
+				fmt.Printf("Map data @ key [%s]  [%s]\n", fieldName, mapdata)
+				err = CheckType(mapdata, f.Interface())
+				if err != nil {
+					return err
+				}
+			}
+			fmt.Println("--End Field info")
+		}
+		return nil
+	default:
+		return fmt.Errorf("Unrecognized struct kind: [%s]", structKind)
+	}
+
+	return nil
+}
+
+func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (er error) {
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("Error casting input data to map[string]interface{}")
+	}
+	fmt.Printf("dataMap: [%s]\n", dataMap)
+	return nil
+}
+
+func OldCheckType(data interface{}, thestruct interface{}) (err error) {
 
 	dType := reflect.TypeOf(data)
 	dKind := dType.Kind()
 
+	structAsType, ok := thestruct.(reflect.Type)
+	if !ok {
+		// named struct types won't implement Type
+	}
+
 	fmt.Printf("=============Checking data   : %s\n", dKind)
 	fmt.Printf("=============Checking struct : %s\n", thestruct)
+	fmt.Printf("=============Checking struct type: %s\n", structAsType)
+	fmt.Printf("=============Checking struct kind: %s\n", reflect.TypeOf(thestruct).Kind())
 
 	// Special case. Go's `time.Time` is a struct, which we don't want
 	// to confuse with a user struct.
@@ -65,7 +285,7 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	}
 
 	if dKind >= reflect.Int && dKind <= reflect.Uint64 {
-		return fmt.Errorf("Not implemented")
+		return fmt.Errorf("int Not implemented")
 	}
 	switch dKind {
 	case reflect.Map:
@@ -73,58 +293,72 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 		// data to an unnamed map type, or a struct.
 
 		// Deal with the case where we've got a map first.
-		structType, ok := thestruct.(reflect.Type)
-		if ok {
-			if structType.Kind() == reflect.Map {
-				fmt.Printf("Elem Kind: [%s]\n", structType.Elem().Kind())
-				// toml was mapped into an interface type
-				// Ok, this is an interface on the *struct* - just
-				// leave it alone since we want that to be allowed
-				// TODO: iterate over the k/v pairs in the data
-				dataMap := data.(map[string]interface{})
-				for _, v := range dataMap {
-					sType := structType.Elem()
+		structType := reflect.TypeOf(thestruct)
+		if structType.Kind() == reflect.Map {
+			fmt.Printf("Elem Kind: [%s]\n", structType.Elem().Kind())
+			// toml was mapped into an interface type
+			// Ok, this is an interface on the *struct* - just
+			// leave it alone since we want that to be allowed
+			// TODO: iterate over the k/v pairs in the data
+			dataMap := data.(map[string]interface{})
+			for _, v := range dataMap {
+				sType := structType.Elem()
 
-					// 2 broad cases.  It's map to interface{} or a
-					// map to something else.
-					if sType.Kind() == reflect.Interface {
-						fmt.Printf("NumMethods: [%d]\n",
-							sType.NumMethod())
-						if sType.NumMethod() == 0 {
-							fmt.Printf("Sweet.  The struct is an empty interface. Terminate!\n")
-							return nil
-						} else {
-							return fmt.Errorf("We don't write data to non-empty interfaces around here\n")
-						}
-					}
-
-					// For all non-interface{} elem maps, we just
-					// recurse down with another call to CheckType
-					if err = CheckType(v, sType); err != nil {
-						return err
+				// 2 broad cases.  It's map to interface{} or a
+				// map to something else.
+				if sType.Kind() == reflect.Interface {
+					fmt.Printf("NumMethods: [%d]\n",
+						sType.NumMethod())
+					if sType.NumMethod() == 0 {
+						fmt.Printf("Sweet.  The struct is an empty interface. Terminate!\n")
+						return nil
+					} else {
+						return fmt.Errorf("We don't write data to non-empty interfaces around here\n")
 					}
 				}
-				return nil
+
+				// For all non-interface{} elem maps, we just
+				// recurse down with another call to CheckType
+				fmt.Printf("Passing [%s] with [%s] to CheckType\n", v, sType)
+				if err = CheckType(v, sType); err != nil {
+					return err
+				}
 			}
-			return fmt.Errorf("Incoming datastructure is a type, but not an unnamed map.  data:[%s] struct:[%s]", data, thestruct)
+			return nil
 		}
 
-		tmpType := reflect.TypeOf(thestruct)
-		if tmpType.Kind() != reflect.Struct {
-			return fmt.Errorf("Error mapping data to invalid type.  data=[%s] thestruct=[%s]", 
-            data, thestruct)
-		}
-
+		// the other case - map data to a struct type
 		dataMap := data.(map[string]interface{})
 		for k, v := range dataMap {
-			fmt.Printf("CheckTypeMap: key=[%s] data=%r\n", k, dataMap)
-			fmt.Printf("CheckTypeMap: checking subkey=[%s]\n", v)
+			fmt.Printf("CheckTypeMap: k=[%s]\n", k)
+			fmt.Printf("CheckTypeMap: v=[%s]\n", v)
 
 			// Build dictionaries up to do field lookups
 			var fieldNames = make([]string, 0)
 			var origFieldNames = make(map[string]string)
+
+			var structAsType reflect.Type
+			var ok bool
+			structAsType, ok = thestruct.(reflect.Type)
+			fmt.Printf("structAsType is : [%s]\n", structAsType)
+			if ok {
+				// thestruct is an actual struct
+				fmt.Printf("CheckTypeMap: typeOf(thestruct)=[%s]\n", reflect.TypeOf(thestruct))
+				fmt.Printf("CheckTypeMap: cast to a type = %s\n", structAsType)
+				fmt.Printf("structAsType NumMethod: %d\n", structAsType.NumMethod())
+				fmt.Printf("structAsType.Kind(): %s\n", structAsType.Kind())
+
+				fmt.Printf("dataMap: %s\n", dataMap)
+				if structAsType.Kind() != reflect.Interface {
+					return checkStructType(dataMap, structAsType)
+				}
+			}
 			s := reflect.ValueOf(thestruct)
 			typeOfT := s.Type()
+
+			fmt.Printf("s NumMethod: %d\n", s.NumMethod())
+			fmt.Printf("s NumField: %d\n", s.NumField())
+
 			for i := 0; i < s.NumField(); i++ {
 				lFieldname := strings.ToLower(typeOfT.Field(i).Name)
 				fieldNames = append(fieldNames, lFieldname)

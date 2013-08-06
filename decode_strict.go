@@ -161,7 +161,7 @@ func checkTypeStructAsValue(data interface{}, structAsValue reflect.Value) (err 
 		if !ok {
 			return fmt.Errorf("Expected data to be a map: [%s]", data)
 		}
-		// TODO: make sure all keys from dataMap are valid
+		// make sure all keys from dataMap are valid
 		for _, k := range structAsValue.MapKeys() {
 			keyString := k.Interface().(string)
 			fmt.Printf("Map Key: %s\n", keyString)
@@ -245,11 +245,11 @@ func checkTypeStructAsValue(data interface{}, structAsValue reflect.Value) (err 
 		}
 		return fmt.Errorf("Incoming type didn't match gotype float64")
 	case reflect.Array:
-		return fmt.Errorf("*** TODO Not done yet! Array")
+		return fmt.Errorf("*** This shouldn't happen")
 	case reflect.Struct:
 		typeOfStruct := structAsValue.Type()
 		dataMap := data.(map[string]interface{})
-		// TODO: need to iterate over each key in the data to make
+		// need to iterate over each key in the data to make
 		// sure it exists in typeOfStruct
 		for i := 0; i < structAsValue.NumField(); i++ {
 			f := structAsValue.Field(i)
@@ -381,10 +381,10 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 		}
 		return fmt.Errorf("Incoming type didn't match gotype float64")
 	case reflect.Array:
-		return fmt.Errorf("*** TODO Not done yet! Array")
+		return fmt.Errorf("*** This shouldn't happen")
 	case reflect.Struct:
 		dataMap := data.(map[string]interface{})
-		// TODO: need to iterate over each key in the data to make
+		// need to iterate over each key in the data to make
 		// sure it exists in structAsType
 		for i := 0; i < structAsType.NumField(); i++ {
 			f := structAsType.Field(i)

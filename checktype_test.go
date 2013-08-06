@@ -24,7 +24,6 @@ started = 1970
 albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 `
 
-
 	type classics struct {
 		Ranking []string
 		Bands   map[string]Primitive
@@ -44,6 +43,25 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 }
 
 func DecodeStrictSpec(c gs.Context) {
+
+	// This blob when used with an empty_ignore blob
+	var testSimple = `
+age = 250
+andrew = "gallant"
+kait = "brady"
+now = 1987-07-05T05:45:00Z 
+yesOrNo = true
+pi = 3.14
+colors = [
+	["red", "green", "blue"],
+	["cyan", "magenta", "yellow", "black"],
+]
+
+[Annoying.Cats]
+plato = "smelly"
+cauchy = "stupido"
+`
+
 	var tomlBlob = `
 # Some comments.
 [alpha]
@@ -66,24 +84,39 @@ ip = "10.0.0.1"
 		Config    serverConfig `toml:"config"`
 	}
 
+	type kitties struct {
+		Plato  string
+		Cauchy string
+	}
+
+	type simple struct {
+		Age      int
+		Colors   [][]string
+		Pi       float64
+		YesOrNo  bool
+		Now      time.Time
+		Andrew   string
+		Kait     string
+		Annoying map[string]kitties
+	}
+
 	type servers map[string]server
 
 	var config servers
-	//var val simple
+	var val simple
 	var err error
 	var md MetaData
 
-	//empty_ignore := map[string]interface{}{}
-
-	// TODO: convert this to use Decode and CheckType
 	md, err = Decode(tomlBlob, &config) //, empty_ignore)
 	c.Assume(err, gs.IsNil)
-	err = CheckType(md.mapping, config) // this should fail
+	err = CheckType(md.mapping, config) // this should pass with no errors
 	c.Assume(err, gs.IsNil)
 
-	// TODO: convert this to use Decode and CheckType
-	//_, err = DecodeStrict(testSimple, &val, empty_ignore)
-	//c.Assume(err, gs.IsNil)
+	//empty_ignore := map[string]interface{}{}
+	md, err = Decode(testSimple, &val)
+	c.Assume(err, gs.IsNil)
+	err = CheckType(md.mapping, val) // this should pass with no errors
+	c.Assume(err, gs.IsNil)
 
 	// TODO: convert this to use Decode and CheckType
 	//_, err = DecodeStrict(testBadArg, &val, empty_ignore)

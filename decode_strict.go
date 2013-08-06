@@ -386,22 +386,39 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 		dataMap := data.(map[string]interface{})
 		// need to iterate over each key in the data to make
 		// sure it exists in structAsType
+		mapKeys := make([]string, 0)
+		for k, _ := range dataMap {
+			mapKeys = append(mapKeys, strings.ToLower(k))
+		}
+		structKeys := make([]string, 0)
+		var fieldName string
 		for i := 0; i < structAsType.NumField(); i++ {
 			f := structAsType.Field(i)
-			fieldName := structAsType.Field(i).Name
+
+			fieldName = f.Tag.Get("toml")
+			if len(fieldName) == 0 {
+				fieldName = f.Name
+			}
+			structKeys = append(structKeys, strings.ToLower(fieldName))
+		}
+
+		for _, k := range mapKeys {
+			if !Contains(structKeys, k) {
+				return fmt.Errorf("Expected struct to have key: [%s] structName: [%s]",
+					k, structAsType.Name())
+			}
+		}
+
+		for i := 0; i < structAsType.NumField(); i++ {
+			f := structAsType.Field(i)
+			fieldName := f.Name
 			fmt.Println("--Field info")
 			fmt.Printf("Field name in struct: [%s]\n", fieldName)
-			//fieldInterface := f.Interface()
-			//fmt.Printf("f.Interface() : %s\n", fieldInterface)
-			//fmt.Printf("Type of field interface: %s\n", reflect.ValueOf(fieldInterface).Type())
 			// Now look up the data map
 			mapdata, ok := insensitiveGet(dataMap, fieldName)
 			if ok {
-				fmt.Printf("Map data @ key [%s]  [%s]\n", fieldName, mapdata)
-				return fmt.Errorf("Need to get the type of the field: %s", f)
-				/*
-					err = CheckType(mapdata, f.Interface())
-				*/
+				fmt.Printf("key [%s]  mapdata: [%s] f.Type[%s]\n", fieldName, mapdata, f.Type)
+				err = CheckType(mapdata, f.Type)
 				if err != nil {
 					return err
 				}

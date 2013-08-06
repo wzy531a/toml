@@ -121,6 +121,15 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	structAsValueType = structAsValue.Type()
 	structAsValueKind = structAsValueType.Kind()
 	structAsValueKind = structAsValueType.Kind()
+
+	// Special case. Go's `time.Time` is a struct, which we don't want
+	// to confuse with a user struct.
+	timeType := rvalue(time.Time{}).Type()
+
+	if dType == timeType && thestruct == timeType {
+		fmt.Printf("Time type detected on thestruct and dType\n")
+		return nil
+	}
 	fmt.Printf("dType: %s\n", dType)
 	fmt.Printf("dKind: %s\n", dKind)
 	fmt.Printf("data: %s\n", data)
@@ -130,18 +139,6 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	fmt.Printf("structAsValue: %s\n", structAsValue)
 	fmt.Printf("structAsValueType: %s\n", structAsValueType)
 	fmt.Printf("structAsValueKind: %s\n", structAsValueKind)
-
-	// Special case. Go's `time.Time` is a struct, which we don't want
-	// to confuse with a user struct.
-	if reflect.ValueOf(thestruct).Type().AssignableTo(rvalue(time.Time{}).Type()) {
-		// TODO: deal with time.Time types
-		if dType.AssignableTo(rvalue(time.Time{}).Type()) {
-			fmt.Printf("Time type detected on incoming and assignable\n")
-			return nil
-		}
-
-		return fmt.Errorf("Invalid type came in for a time.Time gotyp")
-	}
 
 	if structAsTypeOk {
 		// this should never happen
@@ -296,14 +293,6 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 		fmt.Printf("woot. It's an int\n")
 		return nil
 	}
-
-	/*
-				// Any other type should be caught here
-		        if structAsType == dType {
-		            fmt.Printf("input data [%s] looklike a [%s][%s]\n", data, dType, structAsType)
-		            return nil
-		        }
-	*/
 
 	structKind := structAsType.Kind()
 	switch structKind {

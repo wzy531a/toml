@@ -24,10 +24,6 @@ started = 1970
 albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 `
 
-	type band struct {
-		Started int
-		Albums  []string
-	}
 
 	type classics struct {
 		Ranking []string

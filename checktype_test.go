@@ -36,8 +36,9 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		md, err = Decode(tomlBlob, &music)
 		c.Assume(err, gs.IsNil)
 		fmt.Printf("md.mapping kind(): %s\n", reflect.TypeOf(md.mapping))
-		// TODO: do the strict comparison in a separate function
-		err = CheckType(md.mapping, music)
+
+		empty_ignore := map[string]interface{}{}
+		err = CheckType(md.mapping, music, empty_ignore)
 		c.Assume(err, gs.IsNil)
 	})
 }
@@ -105,21 +106,15 @@ ip = "10.0.0.1"
 	var config servers
 	var val simple
 	var err error
-	var md MetaData
 
-	md, err = Decode(tomlBlob, &config) //, empty_ignore)
-	c.Assume(err, gs.IsNil)
-	err = CheckType(md.mapping, config) // this should pass with no errors
+	empty_ignore := map[string]interface{}{}
+	_, err = DecodeStrict(tomlBlob, &config, empty_ignore)
 	c.Assume(err, gs.IsNil)
 
-	//empty_ignore := map[string]interface{}{}
-	md, err = Decode(testSimple, &val)
-	c.Assume(err, gs.IsNil)
-	err = CheckType(md.mapping, val) // this should pass with no errors
+	_, err = DecodeStrict(testSimple, &val, empty_ignore)
 	c.Assume(err, gs.IsNil)
 
-	// TODO: convert this to use Decode and CheckType
-	//_, err = DecodeStrict(testBadArg, &val, empty_ignore)
-	//c.Assume(err.Error(), gs.Equals, "Configuration contains key [not_andrew] which doesn't exist in struct")
+	_, err = DecodeStrict(testBadArg, &val, empty_ignore)
+	c.Assume(err.Error(), gs.Equals, "Configuration contains key [not_andrew] which doesn't exist in struct")
 
 }

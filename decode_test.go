@@ -331,8 +331,8 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 
 		err = PrimitiveDecodeStrict(primValue, &aBand, ignore_type)
 		if artist == "Springsteen" {
-			// TODO: c.Expect(err.Error(), gs.Equals, "Configuration contains key [not_albums] which doesn't exist in struct")
-
+            c.Assume(err, gs.Not(gs.IsNil))
+			c.Expect(err.Error(), gs.Equals, "Configuration contains key [not_albums] which doesn't exist in struct")
 			c.Assume(1973, gs.Equals, aBand.Started)
 		} else {
 			c.Expect(err, gs.IsNil)

@@ -15,8 +15,19 @@ func PrimitiveDecodeStrict(primValue Primitive,
 	v interface{},
 	ignore_fields map[string]interface{}) (err error) {
 
+	fmt.Println("============================")
+	fmt.Printf("pre         v: [ %s ]\n", v)
+	fmt.Printf("pre primValue: [ %s ]\n", primValue)
+
 	err = PrimitiveDecode(primValue, v)
-	// TODO: inject the check* function here
+	if err != nil {
+		return
+	}
+
+	fmt.Printf("post PrimitiveDecode: \n\tprimValue = { %s } \n\tv = { %s }\n", primValue, v)
+
+	thestruct := reflect.ValueOf(v).Elem().Interface()
+	err = CheckType(primValue, thestruct, ignore_fields)
 	return
 }
 
@@ -31,7 +42,8 @@ func DecodeStrict(data string,
 		return
 	}
 
-    // TODO: add a check* function here
+	thestruct := reflect.ValueOf(v).Elem().Interface()
+	err = CheckType(m.mapping, thestruct, ignore_fields)
 	return
 }
 
@@ -44,62 +56,10 @@ func Contains(list []string, elem string) bool {
 	return false
 }
 
-func checkStructType(data interface{}, s reflect.Type) (err error) {
-	fmt.Printf("====== checkStructType \n")
-	// the other case - map data to a struct type
-	dataMap := data.(map[string]interface{})
-	for k, v := range dataMap {
-		fmt.Printf("CheckTypeMap: k=[%s]\n", k)
-		fmt.Printf("CheckTypeMap: v=[%s]\n", v)
+func CheckType(data interface{},
+	thestruct interface{},
+	ignore_fields map[string]interface{}) (err error) {
 
-		// Build dictionaries up to do field lookups
-		var fieldNames = make([]string, 0)
-		var origFieldNames = make(map[string]string)
-
-		fmt.Printf("s NumMethod: %d\n", s.NumMethod())
-		fmt.Printf("s NumField: %d\n", s.NumField())
-
-		for i := 0; i < s.NumField(); i++ {
-			lFieldname := strings.ToLower(s.Field(i).Name)
-			fieldNames = append(fieldNames, lFieldname)
-			origFieldNames[lFieldname] = s.Field(i).Name
-		}
-		// Find all keys from map in the datastructure
-		// Maps can map down to either golang
-		// map[string]interface{} types or to actual golang
-		// structs
-
-		for k, _ := range dataMap {
-			fmt.Printf("dataMap key: [%s]\n", k)
-		}
-
-		for _, v := range fieldNames {
-			fmt.Printf("field name: [%s]\n", v)
-		}
-
-		for k, _ := range dataMap {
-			lKeyName := strings.ToLower(k)
-			if !Contains(fieldNames, lKeyName) {
-				return fmt.Errorf("Can't find field [%s] in struct\n", k)
-			} else {
-				fmt.Printf("Found [%s] in struct as [%s]\n", k, origFieldNames[lKeyName])
-				f, ok := s.FieldByName(origFieldNames[lKeyName])
-				if !ok {
-					return fmt.Errorf("Can't find original field [%s]\n", origFieldNames[lKeyName])
-				}
-				fmt.Printf("Nested type is : [%s]\n\t[%s]\n", f, f.Type)
-				if err = CheckType(dataMap[k], f.Type); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	fmt.Printf("====== exit checkStructType ok\n")
-	return nil
-
-}
-
-func CheckType(data interface{}, thestruct interface{}) (err error) {
 	var dType reflect.Type
 	var dKind reflect.Kind
 	var structAsType reflect.Type
@@ -142,9 +102,13 @@ func CheckType(data interface{}, thestruct interface{}) (err error) {
 	if structAsTypeOk {
 		// this should never happen
 		fmt.Printf("struct cast to reflect.Type [%s]\n", structAsType)
-		return checkTypeStructAsType(data, structAsType)
+		return checkTypeStructAsType(data,
+			structAsType,
+			ignore_fields)
 	} else if structAsValueTypeOK {
-		return checkTypeStructAsType(data, structAsValueType)
+		return checkTypeStructAsType(data,
+			structAsValueType,
+			ignore_fields)
 	} else {
 		return fmt.Errorf("this shouldn't happen")
 	}
@@ -283,7 +247,9 @@ func checkTypeStructAsValue(data interface{}, structAsValue reflect.Value) (err 
 }
 */
 
-func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err error) {
+func checkTypeStructAsType(data interface{},
+	structAsType reflect.Type,
+	ignore_fields map[string]interface{}) (err error) {
 	fmt.Printf("type: %s\n", reflect.ValueOf(data).Type())
 	fmt.Printf("structAsType: %s\n", structAsType)
 	dType := reflect.ValueOf(data).Type()
@@ -319,7 +285,7 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 			// underlying type of the slice type we are mapping onto
 			elemType := structMapElem.(reflect.Type)
 			fmt.Printf("map elemType: [%s]\n", elemType)
-			if err = CheckType(v, elemType); err != nil {
+			if err = CheckType(v, elemType, ignore_fields); err != nil {
 				return err
 			}
 		}
@@ -341,7 +307,7 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 			// underlying type of the slice type we are mapping onto
 			elemType := structSliceElem.(reflect.Type)
 			fmt.Printf("elemType: [%s]\n", elemType)
-			if err = CheckType(v, elemType); err != nil {
+			if err = CheckType(v, elemType, ignore_fields); err != nil {
 				return err
 			}
 
@@ -407,8 +373,10 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 
 		for _, k := range mapKeys {
 			if !Contains(structKeys, k) {
-				return fmt.Errorf("Expected struct to have key: [%s] structName: [%s]",
-					k, structAsType.Name())
+				if _, ok := insensitiveGet(ignore_fields, k); !ok {
+					return e("Configuration contains key [%s] "+
+						"which doesn't exist in struct", k)
+				}
 			}
 		}
 
@@ -421,7 +389,7 @@ func checkTypeStructAsType(data interface{}, structAsType reflect.Type) (err err
 			mapdata, ok := insensitiveGet(dataMap, fieldName)
 			if ok {
 				fmt.Printf("key [%s]  mapdata: [%s] f.Type[%s]\n", fieldName, mapdata, f.Type)
-				err = CheckType(mapdata, f.Type)
+				err = CheckType(mapdata, f.Type, ignore_fields)
 				if err != nil {
 					return err
 				}

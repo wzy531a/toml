@@ -199,9 +199,9 @@ func unifySlice(data interface{}, rv reflect.Value) error {
 	if !ok {
 		return badtype("slice", data)
 	}
-	if rv.IsNil() {
-		rv.Set(reflect.MakeSlice(rv.Type(), len(slice), len(slice)))
-	}
+
+	rv.Set(reflect.MakeSlice(rv.Type(), len(slice), len(slice)))
+
 	for i, v := range slice {
 		sliceval := indirect(rv.Index(i))
 		if err := unify(v, sliceval); err != nil {

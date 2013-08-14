@@ -331,7 +331,7 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 
 		err = PrimitiveDecodeStrict(primValue, &aBand, ignore_type)
 		if artist == "Springsteen" {
-            c.Assume(err, gs.Not(gs.IsNil))
+			c.Assume(err, gs.Not(gs.IsNil))
 			c.Expect(err.Error(), gs.Equals, "Configuration contains key [not_albums] which doesn't exist in struct")
 			c.Assume(1973, gs.Equals, aBand.Started)
 		} else {
@@ -340,33 +340,4 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		}
 
 	}
-}
-
-func DelegateDecodeStrictSpec(c gs.Context) {
-
-	var tomlBlob = `
-[MyMultiDecoder]
-type = "MultiDecoder"
-order = ["MyJsonDecoder", "MyProtobufDecoder"]
-
-[MyMultiDecoder.delegates.MyJsonDecoder]
-type = "JsonDecoder"
-encoding_name = "JSON"
-
-[MyMultiDecoder.delegates.MyProtobufDecoder]
-type = "ProtobufDecoder"
-encoding_name = "PROTOCOL_BUFFER"
-`
-
-	type decoder struct {
-		Typ       string `toml:"type"`
-		Order     []string
-		delegates interface{}
-	}
-
-	var err error
-	var obj interface{}
-	empty_ignore := map[string]interface{}{}
-	_, err = DecodeStrict(tomlBlob, &obj, empty_ignore)
-	c.Assume(err, gs.IsNil)
 }

@@ -1,9 +1,7 @@
 package toml
 
 import (
-	"fmt"
 	gs "github.com/rafrombrc/gospec/src/gospec"
-	"reflect"
 	"time"
 )
 
@@ -35,7 +33,6 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		var md MetaData
 		md, err = Decode(tomlBlob, &music)
 		c.Assume(err, gs.IsNil)
-		fmt.Printf("md.mapping kind(): %s\n", reflect.TypeOf(md.mapping))
 
 		empty_ignore := map[string]interface{}{}
 		err = CheckType(md.mapping, music, empty_ignore)
@@ -116,5 +113,51 @@ ip = "10.0.0.1"
 
 	_, err = DecodeStrict(testBadArg, &val, empty_ignore)
 	c.Assume(err.Error(), gs.Equals, "Configuration contains key [not_andrew] which doesn't exist in struct")
+
+}
+
+func DecodeStrictInterfaceSpec(c gs.Context) {
+	// Check that we can safely decode into an empty interface
+	// properly
+
+	var tomlBlob = `
+[MyMultiDecoder]
+type = "MultiDecoder"
+order = ["MyJsonDecoder", "MyProtobufDecoder"]
+
+[MyMultiDecoder.delegates.MyJsonDecoder]
+type = "JsonDecoder"
+encoding_name = "JSON"
+
+[MyMultiDecoder.delegates.MyProtobufDecoder]
+type = "ProtobufDecoder"
+encoding_name = "PROTOCOL_BUFFER"
+`
+
+	var err error
+	var obj interface{}
+	empty_ignore := map[string]interface{}{}
+	_, err = DecodeStrict(tomlBlob, &obj, empty_ignore)
+	c.Assume(err, gs.IsNil)
+
+	actualObj := obj.(map[string]interface{})
+	multidecoder := actualObj["MyMultiDecoder"].(map[string]interface{})
+	c.Expect(multidecoder["type"], gs.Equals, "MultiDecoder")
+	order := multidecoder["order"].([]interface{})
+
+	d1 := order[0].(string)
+	d2 := order[1].(string)
+	c.Expect(d1, gs.Equals, "MyJsonDecoder")
+	c.Expect(d2, gs.Equals, "MyProtobufDecoder")
+	delegates := multidecoder["delegates"].(map[string]interface{})
+
+	myjson := delegates["MyJsonDecoder"].(map[string]interface{})
+	myproto := delegates["MyProtobufDecoder"].(map[string]interface{})
+
+	c.Expect(myjson["type"], gs.Equals, "JsonDecoder")
+	c.Expect(myjson["encoding_name"], gs.Equals, "JSON")
+
+	c.Expect(myproto["type"], gs.Equals, "ProtobufDecoder")
+	c.Expect(myproto["encoding_name"], gs.Equals, "PROTOCOL_BUFFER")
 
 }

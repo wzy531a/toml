@@ -15,6 +15,14 @@ func PrimitiveDecodeStrict(primValue Primitive,
 	v interface{},
 	ignore_fields map[string]interface{}) (err error) {
 
+	// Only accept pointer types
+	value := reflect.ValueOf(v)
+	vtype := value.Type()
+	vkind := vtype.Kind()
+	if vkind != reflect.Ptr {
+		return fmt.Errorf("Can't use non-pointer type in PrimitiveDecode: [%s]", v)
+	}
+
 	err = PrimitiveDecode(primValue, v)
 	if err != nil {
 		return

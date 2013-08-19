@@ -101,6 +101,7 @@ func CheckType(data interface{},
 func checkTypeStructAsType(data interface{},
 	structAsType reflect.Type,
 	ignore_fields map[string]interface{}) (err error) {
+
 	dType := reflect.ValueOf(data).Type()
 	dKind := dType.Kind()
 

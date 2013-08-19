@@ -4,6 +4,7 @@ import (
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -185,22 +186,37 @@ albums = ["The J. Geils Band", "Full House", "Blow Your Face Out"]
 		log.Fatal(err)
 	}
 
-	// MetaData still includes information on Primitive values.
-	c.Assume(md.IsDefined("bands", "Springsteen"), gs.IsTrue)
+	c.Specify("decode with pointers to struct", func() {
+		// MetaData still includes information on Primitive values.
+		c.Assume(md.IsDefined("bands", "Springsteen"), gs.IsTrue)
 
-	// Decode primitive data into Go values.
-	expected_artists := map[string]int{"Springsteen": 1973, "J Geils": 1970}
+		// Decode primitive data into Go values.
+		expected_artists := map[string]int{"Springsteen": 1973, "J Geils": 1970}
 
-	for _, artist := range music.Ranking {
-		// A band is a primitive value, so we need to decode it to get a
-		// real `band` value.
-		primValue := music.Bands[artist]
+		for _, artist := range music.Ranking {
+			// A band is a primitive value, so we need to decode it to get a
+			// real `band` value.
+			primValue := music.Bands[artist]
 
-		var aBand band
-		err = PrimitiveDecode(primValue, &aBand)
-		c.Assume(err, gs.IsNil)
-		c.Assume(expected_artists[artist], gs.Equals, aBand.Started)
-	}
+			var aBand band
+			err = PrimitiveDecode(primValue, &aBand)
+			c.Assume(err, gs.IsNil)
+			c.Assume(expected_artists[artist], gs.Equals, aBand.Started)
+		}
+	})
+
+	c.Specify("decode with struct fails", func() {
+		for _, artist := range music.Ranking {
+			// A band is a primitive value, so we need to decode it to get a
+			// real `band` value.
+			primValue := music.Bands[artist]
+
+			var aBand band
+			err = PrimitiveDecode(primValue, aBand)
+			c.Assume(err, gs.Not(gs.IsNil))
+			c.Expect(strings.HasPrefix(err.Error(), "Can't use non-pointer"), gs.IsTrue)
+		}
+	})
 }
 
 func ExampleDecodeSpec(c gs.Context) {

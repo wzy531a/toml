@@ -83,18 +83,14 @@ func CheckType(data interface{},
 		return nil
 	}
 
-	_, structAsValueTypeOK := structAsValueType.(reflect.Type)
-
 	if structAsTypeOk {
 		return checkTypeStructAsType(data,
 			structAsType,
 			ignore_fields)
-	} else if structAsValueTypeOK {
+	} else {
 		return checkTypeStructAsType(data,
 			structAsValueType,
 			ignore_fields)
-	} else {
-		return fmt.Errorf("this shouldn't happen")
 	}
 }
 

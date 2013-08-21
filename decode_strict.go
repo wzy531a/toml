@@ -10,17 +10,19 @@ import (
 var typeOfStringSlice = reflect.TypeOf([]string(nil))
 var typeOfIntSlice = reflect.TypeOf([]int(nil))
 
-// Same as PrimitiveDecode but adds a strict verification
+func isPointer(v interface{}) bool {
+	vkind := reflect.ValueOf(v).Type().Kind()
+	return vkind == reflect.Ptr
+}
+
+// Same as PrimitiveDecode but adds a strict verification.
 func PrimitiveDecodeStrict(primValue Primitive,
 	v interface{},
 	ignore_fields map[string]interface{}) (err error) {
 
-	// Only accept pointer types
-	value := reflect.ValueOf(v)
-	vtype := value.Type()
-	vkind := vtype.Kind()
-	if vkind != reflect.Ptr {
-		return fmt.Errorf("Can't use non-pointer type in PrimitiveDecode: [%s]", v)
+	// Only accept pointer types.
+	if !isPointer(v) {
+		return fmt.Errorf("Must use pointer type for strict decoding: [%s]", v)
 	}
 
 	err = PrimitiveDecode(primValue, v)
@@ -29,15 +31,20 @@ func PrimitiveDecodeStrict(primValue Primitive,
 	}
 
 	thestruct := reflect.ValueOf(v).Elem().Interface()
-	err = CheckType(primValue, thestruct, ignore_fields)
-	return
+	return CheckType(primValue, thestruct, ignore_fields)
 }
 
-// The same as Decode, except that parsed data that cannot be mapped
-// will throw an error
+// The same as Decode, except that parsed data that cannot be mapped will
+// throw an error.
 func DecodeStrict(data string,
 	v interface{},
 	ignore_fields map[string]interface{}) (m MetaData, err error) {
+
+	// Only accept pointer types.
+	if !isPointer(v) {
+		err = fmt.Errorf("Must use pointer type for strict decoding: [%s]", v)
+		return
+	}
 
 	m, err = Decode(data, v)
 	if err != nil {

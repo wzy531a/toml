@@ -1,21 +1,35 @@
 package toml
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
+
+var typeOfStringSlice = reflect.TypeOf([]string(nil))
+var typeOfIntSlice = reflect.TypeOf([]int(nil))
 
 // Same as PrimitiveDecode but adds a strict verification
 func PrimitiveDecodeStrict(primValue Primitive,
 	v interface{},
 	ignore_fields map[string]interface{}) (err error) {
 
-	err = verify(primValue, rvalue(v), ignore_fields)
+	// Only accept pointer types
+	value := reflect.ValueOf(v)
+	vtype := value.Type()
+	vkind := vtype.Kind()
+	if vkind != reflect.Ptr {
+		return fmt.Errorf("Can't use non-pointer type in PrimitiveDecode: [%s]", v)
+	}
+
+	err = PrimitiveDecode(primValue, v)
 	if err != nil {
 		return
 	}
 
-	err = unify(primValue, rvalue(v))
+	thestruct := reflect.ValueOf(v).Elem().Interface()
+	err = CheckType(primValue, thestruct, ignore_fields)
 	return
 }
 
@@ -30,249 +44,181 @@ func DecodeStrict(data string,
 		return
 	}
 
-	err = verify(m.mapping, rvalue(v), ignore_fields)
+	thestruct := reflect.ValueOf(v).Elem().Interface()
+	err = CheckType(m.mapping, thestruct, ignore_fields)
 	return
 }
 
-/////////////
-
-// verify performs a sort of type unification based on the structure of `rv`,
-// which is the client representation.
-//
-// Any type mismatch produces an error. Finding a type that we don't know
-// how to handle produces an unsupported type error.
-func verify(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-	// Special case. Look for a `Primitive` value.
-	if rv.Type() == reflect.TypeOf((*Primitive)(nil)).Elem() {
-		return verifyAnything(data, rv, ignore_fields)
+func Contains(list []string, elem string) bool {
+	for _, t := range list {
+		if t == elem {
+			return true
+		}
 	}
+	return false
+}
+
+func CheckType(data interface{},
+	thestruct interface{},
+	ignore_fields map[string]interface{}) (err error) {
+
+	var dType reflect.Type
+	var structAsType reflect.Type
+	var structAsTypeOk bool
+	var structAsValue reflect.Value
+	var structAsValueType reflect.Type
+
+	dType = reflect.TypeOf(data)
+
+	structAsType, structAsTypeOk = thestruct.(reflect.Type)
+
+	structAsValue = reflect.ValueOf(thestruct)
+	structAsValueType = structAsValue.Type()
 
 	// Special case. Go's `time.Time` is a struct, which we don't want
 	// to confuse with a user struct.
-	if rv.Type().AssignableTo(rvalue(time.Time{}).Type()) {
-		return verifyDatetime(data, rv, ignore_fields)
+	timeType := rvalue(time.Time{}).Type()
+
+	if dType == timeType && thestruct == timeType {
+		return nil
 	}
 
-	k := rv.Kind()
-
-	// laziness
-	if k >= reflect.Int && k <= reflect.Uint64 {
-		return verifyInt(data, rv, ignore_fields)
+	if structAsTypeOk {
+		return checkTypeStructAsType(data,
+			structAsType,
+			ignore_fields)
+	} else {
+		return checkTypeStructAsType(data,
+			structAsValueType,
+			ignore_fields)
 	}
-	switch k {
-	case reflect.Struct:
-		return verifyStruct(data, rv, ignore_fields)
-	case reflect.Map:
-		return verifyMap(data, rv, ignore_fields)
-	case reflect.Slice:
-		return verifySlice(data, rv, ignore_fields)
-	case reflect.String:
-		return verifyString(data, rv, ignore_fields)
-	case reflect.Bool:
-		return verifyBool(data, rv, ignore_fields)
-	case reflect.Interface:
-		// we only support empty interfaces.
-		if rv.NumMethod() > 0 {
-			e("Unsupported type '%s'.", rv.Kind())
-		}
-		return verifyAnything(data, rv, ignore_fields)
-	case reflect.Float32:
-		fallthrough
-	case reflect.Float64:
-		return verifyFloat64(data, rv, ignore_fields)
-	}
-	return e("Unsupported type '%s'.", rv.Kind())
 }
 
-func verifyStruct(mapping interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
+func checkTypeStructAsType(data interface{},
+	structAsType reflect.Type,
+	ignore_fields map[string]interface{}) (err error) {
 
-	tmap, ok := mapping.(map[string]interface{})
-	if !ok {
-		return mismatch(rv, "map", mapping)
+	dType := reflect.ValueOf(data).Type()
+	dKind := dType.Kind()
+
+	// Handle all the int types
+	dIsInt := (dKind >= reflect.Int && dKind <= reflect.Uint64)
+	sIsInt := (structAsType.Kind() >= reflect.Int && structAsType.Kind() <= reflect.Uint64)
+	if dIsInt && sIsInt {
+		return nil
 	}
 
-	rt := rv.Type()
-
-	struct_keys := make(map[string]interface{})
-	for i := 0; i < rt.NumField(); i++ {
-
-		sft := rt.Field(i)
-		kname := sft.Tag.Get("toml")
-		if len(kname) == 0 {
-			kname = sft.Name
+	structKind := structAsType.Kind()
+	switch structKind {
+	case reflect.Map:
+		dataMap, ok := data.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("Expected data to be a map: [%s]", data)
 		}
 
-		struct_keys[kname] = nil
-	}
+		// Check the elem, which is the type inside the structAsType
+		// container
+		structMapElem := structAsType.Elem()
 
-	for k, _ := range tmap {
-		if _, ok := insensitiveGet(struct_keys, k); !ok {
-			if _, ok = insensitiveGet(ignore_fields, k); !ok {
-				return e("Configuration contains key [%s] "+
-					"which doesn't exist in struct", k)
+		for _, v := range dataMap {
+			// Check each of the items in our dataMap against the
+			// underlying type of the slice type we are mapping onto
+			elemType := structMapElem.(reflect.Type)
+			if err = CheckType(v, elemType, ignore_fields); err != nil {
+				return err
 			}
 		}
-	}
-
-	for i := 0; i < rt.NumField(); i++ {
-		// A little tricky. We want to use the special `toml` name in the
-		// struct tag if it exists. In particular, we need to make sure that
-		// this struct field is in the current map before trying to
-		// verify it.
-		sft := rt.Field(i)
-		kname := sft.Tag.Get("toml")
-		if len(kname) == 0 {
-			kname = sft.Name
+		return nil
+	case reflect.Slice:
+		dataSlice := data.([]interface{})
+		// Get the underlying type of the slice in the struct
+		structSliceElem := structAsType.Elem()
+		for _, v := range dataSlice {
+			// Check each of the items in our dataslice against the
+			// underlying type of the slice type we are mapping onto
+			elemType := structSliceElem.(reflect.Type)
+			if err = CheckType(v, elemType, ignore_fields); err != nil {
+				return err
+			}
 		}
-		if datum, ok := insensitiveGet(tmap, kname); ok {
-			sf := indirect(rv.Field(i))
+		return nil
+	case reflect.String:
+		_, ok := data.(string)
+		if ok {
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype string")
+	case reflect.Bool:
+		_, ok := data.(bool)
+		if ok {
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype bool")
+	case reflect.Interface:
+		if structAsType.NumMethod() == 0 {
+			return nil
+		} else {
+			return fmt.Errorf("We don't write data to non-empty interfaces around here")
+		}
+	case reflect.Float32, reflect.Float64:
+		var ok bool
+		_, ok = data.(float32)
+		if ok {
+			return nil
+		}
+		_, ok = data.(float64)
+		if ok {
+			return nil
+		}
+		return fmt.Errorf("Incoming type didn't match gotype float32/float64")
+	case reflect.Array:
+		return fmt.Errorf("*** This shouldn't happen")
+	case reflect.Struct:
+		dataMap := data.(map[string]interface{})
+		// need to iterate over each key in the data to make
+		// sure it exists in structAsType
+		mapKeys := make([]string, 0)
+		for k, _ := range dataMap {
+			mapKeys = append(mapKeys, strings.ToLower(k))
+		}
+		structKeys := make([]string, 0)
+		var fieldName string
+		for i := 0; i < structAsType.NumField(); i++ {
+			f := structAsType.Field(i)
 
-			// Don't try to mess with unexported types and other such things.
-			if sf.CanSet() {
-				if err := verify(datum, sf, ignore_fields); err != nil {
+			fieldName = f.Tag.Get("toml")
+			if len(fieldName) == 0 {
+				fieldName = f.Name
+			}
+			structKeys = append(structKeys, strings.ToLower(fieldName))
+		}
+
+		for _, k := range mapKeys {
+			if !Contains(structKeys, k) {
+				if _, ok := insensitiveGet(ignore_fields, k); !ok {
+					return e("Configuration contains key [%s] "+
+						"which doesn't exist in struct", k)
+				}
+			}
+		}
+
+		// Check each struct field against incoming data if
+		// available
+		for i := 0; i < structAsType.NumField(); i++ {
+			f := structAsType.Field(i)
+			fieldName := f.Name
+			mapdata, ok := insensitiveGet(dataMap, fieldName)
+			if ok {
+				err = CheckType(mapdata, f.Type, ignore_fields)
+				if err != nil {
 					return err
 				}
-			} else if len(sft.Tag.Get("toml")) > 0 {
-				// Bad user! No soup for you!
-				return e("Field '%s.%s' is unexported, and therefore cannot "+
-					"be loaded with reflection.", rt.String(), sft.Name)
 			}
 		}
-	}
-	return nil
-}
-
-func verifyMap(mapping interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	tmap, ok := mapping.(map[string]interface{})
-	if !ok {
-		return badtype("map", mapping)
-	}
-
-	if rv.IsNil() {
-		rv.Set(reflect.MakeMap(rv.Type()))
-	}
-	// Just verify each of the keys
-	for _, v := range tmap {
-		rvval := indirect(reflect.New(rv.Type().Elem()))
-		if err := verify(v, rvval, ignore_fields); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func verifySlice(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	slice, ok := data.([]interface{})
-	if !ok {
-		return badtype("slice", data)
-	}
-
-	if rv.IsNil() {
-		rv.Set(reflect.MakeSlice(rv.Type(), len(slice), len(slice)))
-	}
-	for i, v := range slice {
-		sliceval := indirect(rv.Index(i))
-		if err := verify(v, sliceval, ignore_fields); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func verifyDatetime(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	if _, ok := data.(time.Time); ok {
 		return nil
+	default:
+		return fmt.Errorf("Unrecognized struct kind: [%s]", structKind)
 	}
-	return badtype("time.Time", data)
-}
 
-func verifyString(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	if _, ok := data.(string); ok {
-		return nil
-	}
-	return badtype("string", data)
-}
-
-func verifyFloat64(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	if _, ok := data.(float64); ok {
-		switch rv.Kind() {
-		case reflect.Float32:
-			fallthrough
-		case reflect.Float64:
-			return nil
-		default:
-			panic("bug")
-		}
-		return nil
-	}
-	return badtype("float", data)
-}
-
-func verifyInt(data interface{}, rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	if _, ok := data.(int64); ok {
-		switch rv.Kind() {
-		case reflect.Int:
-			fallthrough
-		case reflect.Int8:
-			fallthrough
-		case reflect.Int16:
-			fallthrough
-		case reflect.Int32:
-			fallthrough
-		case reflect.Int64:
-			return nil
-
-		case reflect.Uint:
-			fallthrough
-		case reflect.Uint8:
-			fallthrough
-		case reflect.Uint16:
-			fallthrough
-		case reflect.Uint32:
-			fallthrough
-		case reflect.Uint64:
-			return nil
-
-		default:
-			panic("bug")
-		}
-		return nil
-	}
-	return badtype("integer", data)
-}
-
-func verifyBool(data interface{},
-	rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
-
-	if _, ok := data.(bool); ok {
-		return nil
-	}
-	return badtype("integer", data)
-}
-
-func verifyAnything(data interface{}, rv reflect.Value,
-	ignore_fields map[string]interface{}) error {
 	return nil
 }

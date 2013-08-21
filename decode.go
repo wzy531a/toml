@@ -34,6 +34,15 @@ type Primitive interface{}
 // Meta data for primitive values is included in the meta data returned by
 // the `Decode*` functions.
 func PrimitiveDecode(primValue Primitive, v interface{}) error {
+
+	value := reflect.ValueOf(v)
+	vtype := value.Type()
+	vkind := vtype.Kind()
+
+	if vkind != reflect.Ptr {
+		return fmt.Errorf("Can't use non-pointer type in PrimitiveDecode: [%s]", v)
+	}
+
 	return unify(primValue, rvalue(v))
 }
 
@@ -198,9 +207,9 @@ func unifySlice(data interface{}, rv reflect.Value) error {
 	if !ok {
 		return badtype("slice", data)
 	}
-	if rv.IsNil() {
-		rv.Set(reflect.MakeSlice(rv.Type(), len(slice), len(slice)))
-	}
+
+	rv.Set(reflect.MakeSlice(rv.Type(), len(slice), len(slice)))
+
 	for i, v := range slice {
 		sliceval := indirect(rv.Index(i))
 		if err := unify(v, sliceval); err != nil {
@@ -417,4 +426,3 @@ func allKeys(m map[string]interface{}, context Key) []Key {
 	}
 	return keys
 }
-

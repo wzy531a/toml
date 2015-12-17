@@ -20,7 +20,8 @@ num = -5192
 f = -0.5192
 zulu = 1979-05-27T07:32:00Z
 whoop = "poop"
-rawstring = 'this is \d+ for \' all'
+rawstring = 'this is \d+ and \user'
+string = "C:\\user\\balabla\\"
 tests = [ [1, 2, 3], ["abc", "xyz"] ]
 arrs = [ # hmm
 		 # more comments are awesome.

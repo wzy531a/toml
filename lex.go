@@ -23,6 +23,7 @@ const (
 	itemKeyGroupEnd
 	itemKeyStart
 	itemCommentStart
+	itemRawString
 )
 
 const (
@@ -410,12 +411,11 @@ func lexArrayEnd(lx *lexer) stateFn {
 func lexRawString(lx *lexer) stateFn {
 	r := lx.next()
 	switch {
-	case r == '\\':
-		lx.next()
-		return lexRawString
+	case isNL(r):
+		return lx.errorf("Strings cannot contain new lines.")
 	case r == rawStringEnd:
 		lx.backup()
-		lx.emit(itemString)
+		lx.emit(itemRawString)
 		lx.next()
 		lx.ignore()
 		return lx.pop()
@@ -697,6 +697,8 @@ func (itype itemType) String() string {
 	case itemText:
 		return "Text"
 	case itemString:
+		return "String"
+	case itemRawString:
 		return "String"
 	case itemBool:
 		return "Bool"

@@ -34,9 +34,6 @@ type Primitive interface{}
 // Meta data for primitive values is included in the meta data returned by
 // the `Decode*` functions.
 func PrimitiveDecode(primValue Primitive, v interface{}) error {
-	if reflect.ValueOf(v).Kind() != reflect.Ptr {
-		return fmt.Errorf("Can't use non-pointer")
-	}
 	return unify(primValue, rvalue(v))
 }
 

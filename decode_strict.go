@@ -196,6 +196,12 @@ func checkTypeStructAsType(data interface{},
 			fieldName = f.Tag.Get("toml")
 			if len(fieldName) == 0 {
 				fieldName = f.Name
+
+				if f.Type.Kind() == reflect.Struct {
+					structKeys = append(structKeys, readStructKeys(f.Type)...)
+				} else if f.Type.Kind() == reflect.Ptr && f.Type.Elem().Kind() == reflect.Struct {
+					structKeys = append(structKeys, readStructKeys(f.Type.Elem())...)
+				}
 			}
 			structKeys = append(structKeys, strings.ToLower(fieldName))
 		}
@@ -228,4 +234,29 @@ func checkTypeStructAsType(data interface{},
 	}
 
 	return nil
+}
+
+func readStructKeys(structType reflect.Type) (keys []string) {
+	if structType.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < structType.NumField(); i++ {
+		f := structType.Field(i)
+
+		if !f.IsExported() {
+			continue
+		}
+
+		fieldName := f.Tag.Get("toml")
+		if len(fieldName) == 0 {
+			if f.Type.Kind() == reflect.Struct {
+				keys = append(keys, readStructKeys(f.Type)...)
+				continue
+			}
+			fieldName = f.Name
+		}
+		keys = append(keys, strings.ToLower(fieldName))
+	}
+	return
 }

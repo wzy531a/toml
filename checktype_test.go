@@ -161,3 +161,49 @@ encoding_name = "PROTOCOL_BUFFER"
 	c.Expect(myproto["encoding_name"], gs.Equals, "PROTOCOL_BUFFER")
 
 }
+
+func DecodeStrictWithInnerStructSpec(c gs.Context) {
+	var tomlBlob = `
+[DockerConfig]
+appname = "appnameStr"
+tag = "tagStr"
+update_time = 2023-02-14T06:45:00Z
+add_time = "2023-02-13T08:06:10Z"
+cri_type = "docker"
+`
+	type RzyCfg struct {
+		Appname    string    `toml:"appname"`
+		Tag        string    `toml:"tag"`
+		UpdateTime time.Time `toml:"update_time"`
+		addTime    string    `toml:"add_time"`
+	}
+
+	type DockerCfg struct {
+		RzyCfg
+		CriType string `toml:"cri_type"`
+	}
+
+	type DockerPtrCfg struct {
+		*RzyCfg
+		CriType string `toml:"cri_type"`
+	}
+
+	var err error
+	var obj map[string]Primitive
+	empty_ignore := map[string]interface{}{}
+	Decode(tomlBlob, &obj)
+
+	var cfg DockerCfg
+	err = PrimitiveDecodeStrict(obj["DockerConfig"], &cfg, map[string]interface{}{"add_time": true})
+	c.Assume(err, gs.IsNil)
+
+	err = PrimitiveDecodeStrict(obj["DockerConfig"], &cfg, empty_ignore)
+	c.Assume(err.Error(), gs.Equals, "Configuration contains key [add_time] which doesn't exist in struct")
+
+	var cfgPtr DockerPtrCfg
+	err = PrimitiveDecodeStrict(obj["DockerConfig"], &cfgPtr, map[string]interface{}{"add_time": true})
+	c.Assume(err, gs.IsNil)
+
+	err = PrimitiveDecodeStrict(obj["DockerConfig"], &cfgPtr, empty_ignore)
+	c.Assume(err.Error(), gs.Equals, "Configuration contains key [add_time] which doesn't exist in struct")
+}

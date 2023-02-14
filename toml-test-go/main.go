@@ -9,7 +9,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/tianlin/toml"
 )
 
 func init() {

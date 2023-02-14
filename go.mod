@@ -1,4 +1,4 @@
-module github.com/BurntSushi/toml
+module github.com/tianlin/toml
 
 go 1.18
 

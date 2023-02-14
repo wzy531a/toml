@@ -1,7 +1,6 @@
 package toml
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -43,21 +42,8 @@ answer = 42
 `
 
 func TestParse(t *testing.T) {
-	m, err := parse(testParseSmall)
+	_, err := parse(testParseSmall)
 	if err != nil {
 		t.Fatal(err)
-	}
-	printMap(m.mapping, 0)
-}
-
-func printMap(m map[string]interface{}, depth int) {
-	for k, v := range m {
-		testf("%s%s\n", strings.Repeat("  ", depth), k)
-		switch subm := v.(type) {
-		case map[string]interface{}:
-			printMap(subm, depth+1)
-		default:
-			testf("%s%v\n", strings.Repeat("  ", depth+1), v)
-		}
 	}
 }

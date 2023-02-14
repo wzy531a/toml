@@ -21,5 +21,4 @@ func TestEncode(t *testing.T) {
 	if err := e.Encode(v); err != nil {
 		t.Fatal(err)
 	}
-	testf(buf.String())
 }

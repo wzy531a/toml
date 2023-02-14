@@ -4,7 +4,6 @@ import (
 	gs "github.com/rafrombrc/gospec/src/gospec"
 	"log"
 	"reflect"
-	"strings"
 	"time"
 )
 

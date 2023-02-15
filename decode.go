@@ -151,6 +151,16 @@ func unifyStruct(mapping interface{}, rv reflect.Value) error {
 		sft := rt.Field(i)
 		kname := sft.Tag.Get("toml")
 		if len(kname) == 0 {
+			// Set inner struct field
+			if rvf := rv.Field(i); rvf.CanSet() {
+				if sft.Type.Kind() == reflect.Struct ||
+					(sft.Type.Kind() == reflect.Ptr && sft.Type.Elem().Kind() == reflect.Struct) {
+					if err := unifyStruct(mapping, indirect(rvf)); err != nil {
+						return err
+					}
+				}
+			}
+
 			kname = sft.Name
 		}
 		if datum, ok := insensitiveGet(tmap, kname); ok {
